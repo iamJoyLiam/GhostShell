@@ -1,355 +1,844 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#F5F5F7" />
-  <meta name="color-scheme" content="light" />
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#07080a" />
+    <meta name="color-scheme" content="dark" />
 
-  <title>Bonk — 原生 macOS SSH 终端</title>
-  <meta name="description" content="Bonk 是开源免费的 macOS 原生 SSH 终端：多标签分屏、SFTP、端口转发、串口、跳板机、工作区、Quake 下拉终端。基于 SwiftUI + SwiftTerm + Citadel 构建，支持 macOS 15+，MIT 协议。" />
-  <meta name="keywords" content="Bonk, SSH, terminal, macOS, SFTP, SSH client, 开源终端, macOS 终端, 端口转发, 跳板机" />
-  <link rel="canonical" href="https://bonk-terminal.pages.dev/" />
+    <title>Bonk — 原生 macOS SSH 终端</title>
+    <meta
+      name="description"
+      content="Bonk 是开源免费的 macOS 原生 SSH 终端：Agent 模式、行内补全、多标签分屏、SFTP、端口转发、工作区。约 1 秒建连，断线自愈。MIT 协议。"
+    />
+    <meta
+      name="keywords"
+      content="Bonk, SSH, terminal, macOS, SFTP, SSH client, AI agent, 开源终端, macOS 终端, 端口转发, 跳板机"
+    />
+    <link rel="canonical" href="https://bonk-terminal.pages.dev/" />
 
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Bonk — 原生 macOS SSH 终端" />
-  <meta property="og:description" content="开源免费的 macOS 原生 SSH 终端：多标签分屏、SFTP、端口转发、工作区。MIT 协议。" />
-  <meta property="og:locale" content="zh_CN" />
-  <meta property="og:locale:alternate" content="en_US" />
-  <meta property="og:image" content="assets/img/icon-1024.png" />
-  <meta property="og:url" content="https://bonk-terminal.pages.dev/" />
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Bonk — 原生 macOS SSH 终端" />
+    <meta
+      property="og:description"
+      content="开源免费的 macOS 原生 SSH 终端：Agent 模式、行内补全、多标签分屏、SFTP、工作区。MIT 协议。"
+    />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:image" content="assets/img/icon-1024.png" />
+    <meta property="og:url" content="https://bonk-terminal.pages.dev/" />
 
-  <!-- Favicon -->
-  <link rel="icon" href="assets/img/icon-64.png" type="image/png" />
+    <!-- Favicon -->
+    <link rel="icon" href="assets/img/icon-64.png" type="image/png" />
 
-  <!-- Styles -->
-  <link rel="stylesheet" href="assets/css/tokens.css?v=2026.1.2" />
-  <link rel="stylesheet" href="assets/css/base.css?v=2026.1.2" />
-  <link rel="stylesheet" href="assets/css/components.css?v=2026.1.2" />
-  <link rel="stylesheet" href="assets/css/responsive.css?v=2026.1.2" />
-</head>
-<body>
-
-  <!-- ==================== NAV ==================== -->
-  <header class="nav" id="nav">
-    <div class="container nav__inner">
-      <a href="#top" class="nav__brand" aria-label="Bonk">
-        <img class="nav__logo" src="assets/img/icon-256.png" alt="Bonk" width="28" height="28" />
-        <span>Bonk</span>
-      </a>
-
-      <nav class="nav__links" aria-label="Primary">
-        <a href="#features" class="nav__link" data-i18n="nav.features">功能</a>
-        <a href="compare/termius-alternative.html" class="nav__link" data-i18n="nav.compare">对比</a>
-        <a href="docs/getting-started.html" class="nav__link" data-i18n="nav.docs">文档</a>
-        <a href="#download" class="nav__link" data-i18n="nav.download">下载</a>
-      </nav>
-
-      <div class="nav__actions">
-        <div class="lang-switch" role="group" aria-label="Language">
-          <button type="button" data-lang="zh" aria-pressed="true">中</button>
-          <button type="button" data-lang="en" aria-pressed="false">EN</button>
-        </div>
-
-        <a href="https://github.com/iamJoyLiam/Bonk" class="gh-badge" target="_blank" rel="noopener" aria-label="GitHub">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/>
-          </svg>
-          <span class="gh-badge__label" data-i18n="nav.github">GitHub</span>
+    <!-- Styles -->
+    <link rel="stylesheet" href="assets/css/tokens.css?v=2026.3.1" />
+    <link rel="stylesheet" href="assets/css/base.css?v=2026.3.1" />
+    <link rel="stylesheet" href="assets/css/components.css?v=2026.3.1" />
+    <link rel="stylesheet" href="assets/css/responsive.css?v=2026.3.1" />
+  </head>
+  <body>
+    <!-- ==================== NAV ==================== -->
+    <header class="nav" id="nav">
+      <div class="container nav__inner">
+        <a href="#top" class="nav__brand" aria-label="Bonk">
+          <img
+            class="nav__logo"
+            src="assets/img/icon-256.png"
+            alt="Bonk"
+            width="28"
+            height="28"
+          />
+          <span>Bonk</span>
         </a>
 
-        <button class="nav__toggle" id="nav-toggle" aria-label="Menu" aria-expanded="false">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <path d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-  </header>
+        <nav class="nav__links" aria-label="Primary">
+          <a href="#features" class="nav__link" data-i18n="nav.features"
+            >功能</a
+          >
+          <a
+            href="compare/termius-alternative.html"
+            class="nav__link"
+            data-i18n="nav.compare"
+            >对比</a
+          >
+          <a
+            href="docs/getting-started.html"
+            class="nav__link"
+            data-i18n="nav.docs"
+            >文档</a
+          >
+          <a href="#download" class="nav__link" data-i18n="nav.download"
+            >下载</a
+          >
+        </nav>
 
-  <main id="top">
+        <div class="nav__actions">
+          <div class="lang-switch" role="group" aria-label="Language">
+            <button type="button" data-lang="zh" aria-pressed="true">中</button>
+            <button type="button" data-lang="en" aria-pressed="false">
+              EN
+            </button>
+          </div>
 
-    <!-- ==================== HERO ==================== -->
-    <section class="hero">
-      <div class="container hero__inner">
-        <p class="hero__mono" data-i18n="hero.badge">开源 · 免费 · macOS 原生 · MIT</p>
-
-        <h1 class="hero__title">
-          <span data-i18n="hero.title">原生 macOS SSH 终端</span>
-        </h1>
-
-        <p class="hero__desc" data-i18n="hero.desc">
-          用 SwiftUI + SwiftTerm + Citadel 构建，多标签、分屏、SFTP、端口转发、工作区——一个窗口，搞定所有远程工作。
-        </p>
-
-        <div class="hero__cta">
-          <a href="#download" id="hero-download" class="btn btn-primary btn-lg">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          <a
+            href="https://github.com/iamJoyLiam/Bonk"
+            class="gh-badge"
+            target="_blank"
+            rel="noopener"
+            aria-label="GitHub"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"
+              />
             </svg>
-            <span class="btn-text" data-i18n="hero.cta.download">下载 for Mac</span>
+            <span class="gh-badge__label" data-i18n="nav.github">GitHub</span>
           </a>
-          <a href="https://github.com/iamJoyLiam/Bonk" class="btn btn-ghost btn-lg" target="_blank" rel="noopener">
-            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/>
+
+          <a
+            href="#download"
+            class="btn btn-primary btn-sm nav__cta"
+            data-i18n="nav.download"
+            >下载</a
+          >
+
+          <button
+            class="nav__toggle"
+            id="nav-toggle"
+            aria-label="Menu"
+            aria-expanded="false"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>
-            <span data-i18n="hero.cta.source">查看源码</span>
-          </a>
-        </div>
-
-        <div class="hero__meta">
-          <span><span class="mono">v2026.1.2</span></span>
-          <span aria-hidden="true">·</span>
-          <span data-i18n="hero.meta.os">macOS 15+</span>
-          <span aria-hidden="true">·</span>
-          <span data-i18n="hero.meta.arch">arm64 / x86_64</span>
-          <span aria-hidden="true">·</span>
-          <span data-i18n="hero.meta.size">约 9 MB</span>
-        </div>
-
-        <!-- 终端演示（白色主题，自动打字） -->
-        <div class="hero__visual">
-          <div class="terminal" id="demo-terminal" role="img" aria-label="Bonk 终端演示">
-            <div class="terminal__bar">
-              <div class="terminal__dots">
-                <span class="dot-red"></span><span class="dot-yel"></span><span class="dot-grn"></span>
-              </div>
-              <span class="terminal__title" data-i18n="term.title">Bonk — SSH</span>
-            </div>
-
-            <div class="terminal__tabs">
-              <div class="terminal__tab is-active">
-                <span class="conn"></span><span data-i18n="term.tab1">prod-server</span>
-              </div>
-              <div class="terminal__tab">
-                <span class="conn" style="background:var(--term-yellow)"></span><span data-i18n="term.tab2">staging</span>
-              </div>
-              <div class="terminal__tab">
-                <span class="conn"></span><span data-i18n="term.tab3">dev-box</span>
-              </div>
-            </div>
-
-            <div class="terminal__body" id="demo-body">
-              <div id="demo-history"></div>
-            </div>
-          </div>
-          <p class="demo-hint" data-i18n="term.hint">正在自动演示 Bonk 终端…</p>
+          </button>
         </div>
       </div>
-    </section>
+    </header>
 
-    <!-- ==================== FEATURES ==================== -->
-    <section class="section" id="features">
-      <div class="container">
-        <div class="section__head section__head--center reveal">
-          <span class="section__eyebrow" data-i18n="features.eyebrow">核心功能</span>
-          <h2 class="section__title" data-i18n="features.title">为远程工作而生</h2>
-          <p class="section__subtitle" data-i18n="features.subtitle">连接、传输、转发、自动化——专业运维每天都在用的，Bonk 都准备好了。</p>
-        </div>
+    <main id="top">
+      <!-- ==================== HERO ==================== -->
+      <section class="hero">
+        <div class="container hero__inner">
+          <h1 class="hero__title">
+            <span data-i18n="hero.title.a">原生 macOS</span>
+            <span class="grad" data-i18n="hero.title.b">SSH 终端</span>
+          </h1>
 
-        <div class="feature-grid">
-          <div class="feature-card reveal">
-            <div class="feature-card__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
-            </div>
-            <h3 class="feature-card__title" data-i18n="features.f1.title">SSH 终端</h3>
-            <p class="feature-card__desc" data-i18n="features.f1.desc">多标签、水平/垂直分屏，一个窗口同时盯多台机器。</p>
-          </div>
+          <p class="hero__desc" data-i18n="hero.desc">
+            带 Agent 模式与行内补全的原生终端：约 1
+            秒建连、断线自愈，多标签分屏、SFTP、端口转发——一个窗口搞定远程工作。
+          </p>
 
-          <div class="feature-card reveal">
-            <div class="feature-card__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-            </div>
-            <h3 class="feature-card__title" data-i18n="features.f2.title">SFTP 文件管理</h3>
-            <p class="feature-card__desc" data-i18n="features.f2.desc">独立窗口的可视化文件浏览器，拖拽上传下载，无需离开 Bonk。</p>
-          </div>
-
-          <div class="feature-card reveal">
-            <div class="feature-card__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            </div>
-            <h3 class="feature-card__title" data-i18n="features.f3.title">端口转发</h3>
-            <p class="feature-card__desc" data-i18n="features.f3.desc">本地、远程、动态（SOCKS5）三种模式，穿透内网一步到位。</p>
-          </div>
-
-          <div class="feature-card reveal">
-            <div class="feature-card__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
-            </div>
-            <h3 class="feature-card__title" data-i18n="features.f4.title">串口连接</h3>
-            <p class="feature-card__desc" data-i18n="features.f4.desc">直连 /dev/tty.* 串口设备，调试路由器、嵌入式硬件。</p>
-          </div>
-
-          <div class="feature-card reveal">
-            <div class="feature-card__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l6 7-6 7M12 19h10"/></svg>
-            </div>
-            <h3 class="feature-card__title" data-i18n="features.f5.title">跳板机</h3>
-            <p class="feature-card__desc" data-i18n="features.f5.desc">多级 Jump Host 链式跳转，复杂网络拓扑从容应对。</p>
-          </div>
-
-          <div class="feature-card reveal">
-            <div class="feature-card__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-            </div>
-            <h3 class="feature-card__title" data-i18n="features.f6.title">工作区</h3>
-            <p class="feature-card__desc" data-i18n="features.f6.desc">保存并一键恢复整套多会话布局，开机即回到工作现场。</p>
-          </div>
-
-          <div class="feature-card reveal">
-            <div class="feature-card__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>
-            </div>
-            <h3 class="feature-card__title" data-i18n="features.f7.title">代码片段 · 命令历史</h3>
-            <p class="feature-card__desc" data-i18n="features.f7.desc">常用命令存成片段随时调用，历史自动记录，告别重复输入。</p>
-          </div>
-
-          <div class="feature-card reveal">
-            <div class="feature-card__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h10"/></svg>
-            </div>
-            <h3 class="feature-card__title" data-i18n="features.f8.title">Quake 下拉终端</h3>
-            <p class="feature-card__desc" data-i18n="features.f8.desc">全局热键 ⌘` 呼出下拉终端，任何应用里随时一键到达。</p>
-          </div>
-
-          <div class="feature-card reveal">
-            <div class="feature-card__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
-            </div>
-            <h3 class="feature-card__title" data-i18n="features.f9.title">自定义工具栏</h3>
-            <p class="feature-card__desc" data-i18n="features.f9.desc">原生 NSToolbar，拖拽排序、右键自定义，布局自动保存。</p>
-          </div>
-
-          <div class="feature-card reveal">
-            <div class="feature-card__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/></svg>
-            </div>
-            <h3 class="feature-card__title" data-i18n="features.f10.title">主题系统</h3>
-            <p class="feature-card__desc" data-i18n="features.f10.desc">Dark、Dracula、Nord、Solarized 等多套内置主题，支持自定义。</p>
-          </div>
-
-          <div class="feature-card reveal">
-            <div class="feature-card__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h13M3 16h13M21 8l-3 3 3 3"/></svg>
-            </div>
-            <h3 class="feature-card__title" data-i18n="features.f11.title">广播输入</h3>
-            <p class="feature-card__desc" data-i18n="features.f11.desc">一次输入，同步到所有分屏面板——批量运维利器。</p>
-          </div>
-
-          <div class="feature-card reveal">
-            <div class="feature-card__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </div>
-            <h3 class="feature-card__title" data-i18n="features.f12.title">安全优先</h3>
-            <p class="feature-card__desc" data-i18n="features.f12.desc">Secure Enclave P256 密钥、Keychain 凭据、主机密钥校验。</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ==================== SPECS ==================== -->
-    <section class="section" id="specs">
-      <div class="container">
-        <div class="section__head section__head--center reveal">
-          <span class="section__eyebrow" data-i18n="specs.eyebrow">技术规格</span>
-          <h2 class="section__title" data-i18n="specs.title">开箱即用的专业功能</h2>
-        </div>
-
-        <table class="spec-table reveal">
-          <tbody>
-            <tr>
-              <th data-i18n="specs.row1.k">连接</th>
-              <td data-i18n="specs.row1.v">SSH · SFTP · 端口转发（本地/远程/SOCKS5）· 串口 · 跳板机</td>
-            </tr>
-            <tr>
-              <th data-i18n="specs.row2.k">安全</th>
-              <td data-i18n="specs.row2.v">Secure Enclave P256 · Keychain 凭据 · 主机密钥校验 · SSH 配置导入 · Zmodem</td>
-            </tr>
-            <tr>
-              <th data-i18n="specs.row3.k">效率</th>
-              <td data-i18n="specs.row3.v">工作区 · 代码片段 · 命令历史 · 广播 · Quake 下拉终端 · 自定义工具栏 · 主题</td>
-            </tr>
-            <tr>
-              <th data-i18n="specs.row4.k">平台</th>
-              <td data-i18n="specs.row4.v">macOS 15+ · arm64 / x86_64 · iCloud 同步 · Sparkle 自动更新 · MIT 协议</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- ==================== DOWNLOAD ==================== -->
-    <section class="section" id="download">
-      <div class="container">
-        <div class="section__head section__head--center reveal">
-          <span class="section__eyebrow" data-i18n="download.eyebrow">立即下载</span>
-          <h2 class="section__title" data-i18n="download.title">免费开始使用</h2>
-          <p class="section__subtitle" data-i18n="download.subtitle">开源、免费、原生。选你的架构下载 DMG，拖进 Applications 即可。</p>
-        </div>
-
-        <div class="download-grid">
-          <div class="dl-card reveal" id="dl-arm">
-            <div class="dl-card__chip" aria-hidden="true">ARM</div>
-            <div class="dl-card__arch">arm64 · Apple Silicon</div>
-            <h3 class="dl-card__title" data-i18n="download.arm.title">Apple Silicon</h3>
-            <p class="dl-card__desc" data-i18n="download.arm.desc">M 系列芯片的 Mac</p>
-            <a class="btn btn-primary dl-link" href="#" rel="noopener">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-              <span data-i18n="download.btn">下载 DMG</span>
+          <div class="hero__cta">
+            <a
+              href="#download"
+              id="hero-download"
+              class="btn btn-primary btn-lg"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path
+                  d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"
+                />
+              </svg>
+              <span class="btn-text" data-i18n="hero.cta.download"
+                >下载 for Mac</span
+              >
+            </a>
+            <a
+              href="https://github.com/iamJoyLiam/Bonk"
+              class="btn btn-ghost btn-lg"
+              target="_blank"
+              rel="noopener"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"
+                />
+              </svg>
+              <span data-i18n="hero.cta.source">查看源码</span>
             </a>
           </div>
 
-          <div class="dl-card reveal" id="dl-intel">
-            <div class="dl-card__chip" aria-hidden="true">x64</div>
-            <div class="dl-card__arch">x86_64 · Intel</div>
-            <h3 class="dl-card__title" data-i18n="download.intel.title">Intel</h3>
-            <p class="dl-card__desc" data-i18n="download.intel.desc">搭载 Intel 处理器的 Mac</p>
-            <a class="btn btn-ghost dl-link" href="#" rel="noopener">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-              <span data-i18n="download.btn">下载 DMG</span>
-            </a>
+          <div class="hero__meta">
+            <span><span class="mono">v2026.3.1</span></span>
+            <span aria-hidden="true">·</span>
+            <span data-i18n="hero.meta.os">macOS 15+</span>
+            <span aria-hidden="true">·</span>
+            <span data-i18n="hero.meta.arch">arm64 / x86_64</span>
+            <span aria-hidden="true">·</span>
+            <span data-i18n="hero.meta.size">约 24 MB</span>
+          </div>
+
+          <!-- Bonk 应用窗口（按原生 App 还原：标题栏 + 主机侧栏 + 终端） -->
+          <div class="hero__visual">
+            <div class="hero__glow" aria-hidden="true"></div>
+            <div class="app-window" role="img" aria-label="Bonk app">
+              <div class="app-titlebar">
+                <div class="terminal__dots">
+                  <span class="dot-red"></span><span class="dot-yel"></span
+                  ><span class="dot-grn"></span>
+                </div>
+                <span class="tb-icon" aria-hidden="true"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" /></svg
+                ></span>
+                <span class="tb-icon" aria-hidden="true"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="9" y1="3" x2="9" y2="21" /></svg
+                ></span>
+                <span class="app-title">Bonk</span>
+                <div class="app-tools" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                  </svg>
+                  <svg
+                    class="tb-hide-sm"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                  </svg>
+                  <svg
+                    class="tb-hide-sm"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+                    />
+                  </svg>
+                  <svg
+                    class="tb-hide-sm"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                    <polyline points="2 17 12 22 22 17" />
+                    <polyline points="2 12 12 17 22 12" />
+                  </svg>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polygon
+                      points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+                    />
+                  </svg>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  >
+                    <line x1="8" y1="6" x2="21" y2="6" />
+                    <line x1="8" y1="12" x2="21" y2="12" />
+                    <line x1="8" y1="18" x2="21" y2="18" />
+                    <line x1="3" y1="6" x2="3.01" y2="6" />
+                    <line x1="3" y1="12" x2="3.01" y2="12" />
+                    <line x1="3" y1="18" x2="3.01" y2="18" />
+                  </svg>
+                </div>
+              </div>
+              <div class="app-body">
+                <aside class="app-sidebar" aria-hidden="true">
+                  <div class="side-group">
+                    <div class="side-group-h">
+                      <span class="side-gdot" style="background: #ff9f0a"></span
+                      >Production
+                    </div>
+                    <div class="side-host">
+                      <span class="side-bar" style="background: #ff9f0a"></span
+                      ><span class="side-dot"></span><span>203.0.113.10</span>
+                    </div>
+                    <div class="side-host">
+                      <span class="side-bar" style="background: #ff9f0a"></span
+                      ><span class="side-dot"></span><span>203.0.113.11</span>
+                    </div>
+                    <div class="side-host">
+                      <span class="side-bar" style="background: #ff9f0a"></span
+                      ><span class="side-dot"></span><span>203.0.113.12</span>
+                    </div>
+                  </div>
+                  <div class="side-group">
+                    <div class="side-group-h">
+                      <span class="side-gdot" style="background: #ff5f57"></span
+                      >Staging
+                    </div>
+                    <div class="side-host">
+                      <span class="side-bar" style="background: #ff5f57"></span
+                      ><span class="side-dot"></span><span>198.51.100.20</span
+                      ><span class="side-tag tag-blue">web</span>
+                    </div>
+                    <div class="side-host">
+                      <span class="side-bar" style="background: #ff5f57"></span
+                      ><span class="side-dot"></span><span>198.51.100.21</span>
+                    </div>
+                    <div class="side-host">
+                      <span class="side-bar" style="background: #ff5f57"></span
+                      ><span class="side-dot"></span><span>198.51.100.22</span
+                      ><span class="side-tag tag-pink">db</span>
+                    </div>
+                    <div class="side-host">
+                      <span class="side-bar" style="background: #ff5f57"></span
+                      ><span class="side-dot"></span><span>198.51.100.23</span>
+                    </div>
+                  </div>
+                  <div class="side-search">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" /></svg
+                    ><span data-i18n="app.search">搜索</span
+                    ><span class="side-keys">⌘K</span>
+                  </div>
+                </aside>
+                <div class="app-main">
+                  <div class="terminal__tabs">
+                    <div class="terminal__tab is-active">
+                      <span class="conn"></span
+                      ><span class="terminal__tab-title" data-i18n="term.tab1"
+                        >prod-server</span
+                      ><span class="terminal__close" aria-hidden="true">×</span>
+                    </div>
+                    <div class="terminal__tab">
+                      <span class="conn conn-connecting"></span
+                      ><span class="terminal__tab-title" data-i18n="term.tab2"
+                        >staging</span
+                      ><span class="terminal__close" aria-hidden="true">×</span>
+                    </div>
+                    <div class="terminal__tab">
+                      <span class="conn"></span
+                      ><span class="terminal__tab-title" data-i18n="term.tab3"
+                        >dev-box</span
+                      ><span class="terminal__close" aria-hidden="true">×</span>
+                    </div>
+                    <div class="terminal__plus" aria-hidden="true">+</div>
+                  </div>
+
+                  <div class="terminal__body">
+                    <div class="term-line term-dim">
+                      Last login: Mon Sep 7 09:41:22 2026 from 203.0.113.5
+                    </div>
+                    <div class="term-line">
+                      <span class="term-user">deploy@prod</span
+                      ><span class="term-path"> ~ </span
+                      ><span class="term-prompt">$ </span
+                      ><span class="term-cmd">uptime</span>
+                    </div>
+                    <div class="term-line term-out">
+                      09:42:01 up 12 days, 3:17, 0 users, load average: 0.08,
+                      0.03, 0.01
+                    </div>
+                    <div class="term-line">
+                      <span class="term-user">deploy@prod</span
+                      ><span class="term-path"> ~ </span
+                      ><span class="term-prompt">$ </span
+                      ><span class="term-cmd"
+                        >docker ps --format '{{.Names}} {{.Status}}'</span
+                      >
+                    </div>
+                    <div class="term-line term-out">
+                      nginx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Up 12 days
+                    </div>
+                    <div class="term-line term-out">
+                      postgres&nbsp;&nbsp;Up 12 days
+                    </div>
+                    <div class="term-line">
+                      <span class="term-user">deploy@prod</span
+                      ><span class="term-path"> ~ </span
+                      ><span class="term-prompt">$ </span
+                      ><span class="term-cmd">docker logs -f nginx</span
+                      ><span class="term-dim"> --tail 100</span
+                      ><span class="term-cursor"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== PROOF ==================== -->
+      <section class="proof">
+        <div class="container proof__inner reveal">
+          <span data-i18n="proof.caption"
+            >GitHub 开源 · MIT 协议 · 原生 Swift 构建</span
+          >
+        </div>
+      </section>
+
+      <!-- ==================== SIGNATURE FEATURES ==================== -->
+      <section class="section" id="features">
+        <div class="container">
+          <div class="section__head section__head--center reveal">
+            <span class="section__eyebrow" data-i18n="sig.eyebrow"
+              >招牌功能</span
+            >
+            <h2 class="section__title" data-i18n="sig.title">
+              每天都在用的六件事
+            </h2>
+            <p class="section__subtitle" data-i18n="sig.subtitle">
+              Agent、补全、连接、协作、监控、传输——Bonk 的日常工作流。
+            </p>
+          </div>
+
+          <div class="sig-grid">
+            <div class="sig-card reveal">
+              <div class="sig-visual" aria-hidden="true">
+                <div class="mock-line">
+                  <span class="term-user">joy@bonk</span>
+                  <span class="term-prompt">$ </span>
+                  <span class="term-cmd">agent "restart nginx"</span>
+                </div>
+                <div class="mock-line">
+                  <span class="term-ok">✔ plan · 3 steps</span>
+                  <span class="keycap">↵</span>
+                </div>
+              </div>
+              <h3 class="sig-card__title" data-i18n="sig.f1.title">
+                Agent 模式
+              </h3>
+              <p class="sig-card__desc" data-i18n="sig.f1.desc">
+                分步执行先报计划、再要授权，跑偏自动熔断——监督式执行，不抢方向盘。
+              </p>
+            </div>
+
+            <div class="sig-card reveal">
+              <div class="sig-visual" aria-hidden="true">
+                <div class="mock-line">
+                  <span class="term-user">joy@bonk</span>
+                  <span class="term-prompt">$ </span>
+                  <span class="term-cmd">docker </span>
+                  <span class="ghost">compose up -d</span>
+                  <span class="term-cursor"></span>
+                </div>
+                <div class="mock-line">
+                  <span class="keycap">Tab</span>
+                  <span class="term-dim">accept</span>
+                </div>
+              </div>
+              <h3 class="sig-card__title" data-i18n="sig.f2.title">行内补全</h3>
+              <p class="sig-card__desc" data-i18n="sig.f2.desc">
+                Warp 式灰字提示：本地即时层先行，AI 通道补位，一键接受。
+              </p>
+            </div>
+
+            <div class="sig-card reveal">
+              <div class="sig-visual" aria-hidden="true">
+                <div class="stat-num">~1s</div>
+                <div class="stat-label">connect · ⟳ auto-reconnect</div>
+              </div>
+              <h3 class="sig-card__title" data-i18n="sig.f3.title">
+                VNext 连接引擎
+              </h3>
+              <p class="sig-card__desc" data-i18n="sig.f3.desc">
+                原生优先、OpenSSH 兜底：约 1 秒建连，睡眠与网络切换后自动自愈。
+              </p>
+            </div>
+
+            <div class="sig-card reveal">
+              <div class="sig-visual" aria-hidden="true">
+                <div class="mock-line presence">
+                  <span class="dot-you"></span><span>you</span>
+                  <span class="dot-guest"></span><span>guest</span>
+                  <span class="dot-guest"></span><span>guest</span>
+                </div>
+                <div class="mock-line">
+                  <span class="term-dim">LAN · Bonjour · floor: you</span>
+                </div>
+              </div>
+              <h3 class="sig-card__title" data-i18n="sig.f4.title">团队共享</h3>
+              <p class="sig-card__desc" data-i18n="sig.f4.desc">
+                Bonjour 发现局域网主机，IP/PIN 配对，访客窗口带发言权控制。
+              </p>
+            </div>
+
+            <div class="sig-card reveal">
+              <div class="sig-visual" aria-hidden="true">
+                <div class="bars" aria-hidden="true">
+                  <span style="height: 34%"></span>
+                  <span style="height: 58%"></span>
+                  <span style="height: 42%"></span>
+                  <span style="height: 76%"></span>
+                  <span style="height: 64%"></span>
+                  <span style="height: 88%"></span>
+                  <span style="height: 52%"></span>
+                </div>
+                <div class="mock-line">
+                  <span class="term-ok">12% cpu</span>
+                  <span class="term-dim">· prod-server</span>
+                </div>
+              </div>
+              <h3 class="sig-card__title" data-i18n="sig.f5.title">
+                服务器监控
+              </h3>
+              <p class="sig-card__desc" data-i18n="sig.f5.desc">
+                每个标签页的实时资源状态，异常一眼可见，并同步进工具栏。
+              </p>
+            </div>
+
+            <div class="sig-card reveal">
+              <div class="sig-visual" aria-hidden="true">
+                <div class="progress" aria-hidden="true">
+                  <span style="width: 72%"></span>
+                </div>
+                <div class="mock-line">
+                  <span class="term-ok">▲ 850 MB/s</span>
+                  <span class="term-dim">· gap-free pipeline</span>
+                </div>
+              </div>
+              <h3 class="sig-card__title" data-i18n="sig.f6.title">
+                SFTP 流水线
+              </h3>
+              <p class="sig-card__desc" data-i18n="sig.f6.desc">
+                大文件不断流：无间隙流水线传输，拖拽即走。
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== SPECS ==================== -->
+      <section class="section" id="specs">
+        <div class="container">
+          <div class="section__head section__head--center reveal">
+            <span class="section__eyebrow" data-i18n="specs.eyebrow"
+              >技术规格</span
+            >
+            <h2 class="section__title" data-i18n="specs.title">
+              开箱即用的专业功能
+            </h2>
+          </div>
+
+          <table class="spec-table reveal">
+            <tbody>
+              <tr>
+                <th data-i18n="specs.row1.k">连接</th>
+                <td data-i18n="specs.row1.v">
+                  SSH · SFTP · 端口转发（本地/远程/SOCKS5）· 串口 · 跳板机
+                </td>
+              </tr>
+              <tr>
+                <th data-i18n="specs.row5.k">AI</th>
+                <td data-i18n="specs.row5.v">
+                  Agent 模式 · 行内补全 · 推理流 · 自定义提供商 · Copilot /
+                  Claude / OpenAI / Gemini / Ollama
+                </td>
+              </tr>
+              <tr>
+                <th data-i18n="specs.row6.k">可靠性</th>
+                <td data-i18n="specs.row6.v">
+                  VNext 混合引擎 · 约 1 秒建连 · 睡眠/网络切换自愈 ·
+                  认证重试与清晰报错
+                </td>
+              </tr>
+              <tr>
+                <th data-i18n="specs.row2.k">安全</th>
+                <td data-i18n="specs.row2.v">
+                  Secure Enclave P256 · Keychain 凭据 · 主机密钥校验 · SSH
+                  配置导入 · Zmodem
+                </td>
+              </tr>
+              <tr>
+                <th data-i18n="specs.row3.k">效率</th>
+                <td data-i18n="specs.row3.v">
+                  工作区 · 代码片段 · 命令历史 · 广播 · Quake 下拉终端 ·
+                  自定义工具栏 · 主题
+                </td>
+              </tr>
+              <tr>
+                <th data-i18n="specs.row7.k">终端</th>
+                <td data-i18n="specs.row7.v">
+                  SF Mono 14 · 块光标闪烁 · 深色/浅色/跟随系统 · 16 色 ANSI
+                </td>
+              </tr>
+              <tr>
+                <th data-i18n="specs.row8.k">录制回放</th>
+                <td data-i18n="specs.row8.v">
+                  会话录制 · 录制列表管理 · 回放与删除
+                </td>
+              </tr>
+              <tr>
+                <th data-i18n="specs.row4.k">平台</th>
+                <td data-i18n="specs.row4.v">
+                  macOS 15+ · arm64 / x86_64 · iCloud 同步 · Sparkle 自动更新 ·
+                  MIT 协议
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ==================== DOWNLOAD ==================== -->
+      <section class="section" id="download">
+        <div class="container">
+          <div class="section__head section__head--center reveal">
+            <span class="section__eyebrow" data-i18n="download.eyebrow"
+              >立即下载</span
+            >
+            <h2 class="section__title" data-i18n="download.title">
+              免费开始使用
+            </h2>
+            <p class="section__subtitle" data-i18n="download.subtitle">
+              开源、免费、原生。选你的架构下载 DMG，拖进 Applications 即可。
+            </p>
+          </div>
+
+          <div class="download-grid">
+            <div class="dl-card reveal" id="dl-arm">
+              <div class="dl-card__chip" aria-hidden="true">ARM</div>
+              <div class="dl-card__arch">arm64 · Apple Silicon</div>
+              <h3 class="dl-card__title" data-i18n="download.arm.title">
+                Apple Silicon
+              </h3>
+              <p class="dl-card__desc" data-i18n="download.arm.desc">
+                M 系列芯片的 Mac
+              </p>
+              <a class="btn btn-primary dl-link" href="#" rel="noopener">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"
+                  />
+                </svg>
+                <span data-i18n="download.btn">下载 DMG</span>
+              </a>
+            </div>
+
+            <div class="dl-card reveal" id="dl-intel">
+              <div class="dl-card__chip" aria-hidden="true">x64</div>
+              <div class="dl-card__arch">x86_64 · Intel</div>
+              <h3 class="dl-card__title" data-i18n="download.intel.title">
+                Intel
+              </h3>
+              <p class="dl-card__desc" data-i18n="download.intel.desc">
+                搭载 Intel 处理器的 Mac
+              </p>
+              <a class="btn btn-ghost dl-link" href="#" rel="noopener">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"
+                  />
+                </svg>
+                <span data-i18n="download.btn">下载 DMG</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="dl-meta reveal">
+            <span data-i18n="download.meta.os">需要 macOS 15 或更高版本</span>
+            <span data-i18n="download.meta.license">MIT 开源协议</span>
+            <span
+              ><span data-i18n="download.meta.version">当前版本</span>
+              <span class="mono">v2026.3.1</span></span
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="footer">
+      <div class="container footer__inner">
+        <div class="footer__brand">
+          <img
+            class="footer__logo"
+            src="assets/img/icon-256.png"
+            alt="Bonk"
+            width="26"
+            height="26"
+          />
+          <span>Bonk</span>
+        </div>
+
+        <div class="footer__cols">
+          <div class="footer__col">
+            <h4 data-i18n="footer.col.product">产品</h4>
+            <a href="features/ssh-terminal.html" data-i18n="footer.l.ssh"
+              >SSH 终端</a
+            >
+            <a href="features/sftp.html" data-i18n="footer.l.sftp">SFTP</a>
+            <a href="features/workspaces.html" data-i18n="footer.l.workspaces"
+              >工作区</a
+            >
+            <a href="features/quake-terminal.html" data-i18n="footer.l.quake"
+              >Quake 终端</a
+            >
+          </div>
+          <div class="footer__col">
+            <h4 data-i18n="footer.col.compare">对比</h4>
+            <a
+              href="compare/iterm2-alternative.html"
+              data-i18n="footer.l.iterm2"
+              >iTerm2</a
+            >
+            <a href="compare/warp-alternative.html" data-i18n="footer.l.warp"
+              >Warp</a
+            >
+            <a href="compare/tabby-alternative.html" data-i18n="footer.l.tabby"
+              >Tabby</a
+            >
+            <a
+              href="compare/termius-alternative.html"
+              data-i18n="footer.l.termius"
+              >Termius</a
+            >
+          </div>
+          <div class="footer__col">
+            <h4 data-i18n="footer.col.resources">资源</h4>
+            <a href="docs/getting-started.html" data-i18n="footer.l.docs"
+              >文档</a
+            >
+            <a
+              href="https://github.com/iamJoyLiam/Bonk/releases"
+              target="_blank"
+              rel="noopener"
+              >Releases</a
+            >
+            <a
+              href="https://github.com/iamJoyLiam/Bonk"
+              target="_blank"
+              rel="noopener"
+              >GitHub</a
+            >
           </div>
         </div>
 
-        <div class="dl-meta reveal">
-          <span data-i18n="download.meta.os">需要 macOS 15 或更高版本</span>
-          <span data-i18n="download.meta.license">MIT 开源协议</span>
-          <span><span data-i18n="download.meta.version">当前版本</span> <span class="mono">v2026.1.2</span></span>
+        <div class="footer__copy">
+          <span data-i18n="footer.copy">© 2026 Bonk. 保留所有权利。</span>
+          <span aria-hidden="true"> · </span>
+          <span class="footer__built" data-i18n="footer.built"
+            >Built with SwiftUI · SwiftTerm · Citadel</span
+          >
         </div>
       </div>
-    </section>
+    </footer>
 
-  </main>
-
-  <!-- ==================== FOOTER ==================== -->
-  <footer class="footer">
-    <div class="container footer__inner">
-      <div class="footer__brand">
-        <img class="footer__logo" src="assets/img/icon-256.png" alt="Bonk" width="26" height="26" />
-        <span>Bonk</span>
-      </div>
-
-      <nav class="footer__links" aria-label="Footer">
-        <a href="https://github.com/iamJoyLiam/Bonk" target="_blank" rel="noopener" data-i18n="nav.source">源码</a>
-        <a href="https://github.com/iamJoyLiam/Bonk/releases" target="_blank" rel="noopener">Releases</a>
-        <a href="#features" data-i18n="nav.features">功能</a>
-        <a href="compare/termius-alternative.html" data-i18n="nav.compare">对比</a>
-        <a href="docs/getting-started.html" data-i18n="nav.docs">文档</a>
-        <a href="#download" data-i18n="nav.download">下载</a>
-      </nav>
-
-      <div class="footer__copy">
-        <span data-i18n="footer.copy">© 2026 Bonk. 保留所有权利。</span>
-        <span aria-hidden="true"> · </span>
-        <span class="footer__built" data-i18n="footer.built">Built with SwiftUI · SwiftTerm · Citadel</span>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Scripts -->
-  <script src="assets/js/i18n.js?v=2026.1.2" defer></script>
-  <script src="assets/js/download.js?v=2026.1.2" defer></script>
-  <script src="assets/js/main.js?v=2026.1.2" defer></script>
-</body>
+    <!-- Scripts -->
+    <script src="assets/js/i18n.js?v=2026.3.1" defer></script>
+    <script src="assets/js/download.js?v=2026.3.1" defer></script>
+    <script src="assets/js/main.js?v=2026.3.1" defer></script>
+  </body>
 </html>

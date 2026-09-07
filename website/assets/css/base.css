@@ -1,6 +1,6 @@
 /* ============================================================
    Bonk — Base
-   Reset / 排版 / 通用布局
+   Reset / typography / layout. One continuous dark mode.
    ============================================================ */
 
 *,
@@ -18,12 +18,11 @@ html {
 
 body {
   font-family: var(--font-sans);
+  font-feature-settings: var(--font-feature);
   font-size: var(--text-base);
   line-height: var(--leading-normal);
   color: var(--text-primary);
   background: var(--bg-base);
-  background-image: var(--gradient-bg);
-  background-repeat: no-repeat;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -58,6 +57,7 @@ h3 {
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-tight);
   font-weight: 700;
+  color: var(--text-primary);
 }
 
 .container {
@@ -76,7 +76,7 @@ h3 {
 }
 
 .section {
-  padding: var(--space-20) 0;
+  padding: var(--space-24) 0;
 }
 
 .section__head {
@@ -94,7 +94,7 @@ h3 {
   display: inline-block;
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  color: var(--accent-green);
+  color: var(--text-muted);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-bottom: var(--space-3);
@@ -104,11 +104,13 @@ h3 {
   font-size: var(--text-4xl);
   letter-spacing: var(--tracking-tighter);
   margin-bottom: var(--space-4);
+  text-wrap: balance;
 }
 
 .section__subtitle {
   font-size: var(--text-lg);
   color: var(--text-secondary);
+  text-wrap: balance;
 }
 
 .divider {
@@ -122,7 +124,9 @@ h3 {
 .reveal {
   opacity: 0;
   transform: translateY(16px);
-  transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+  transition:
+    opacity 0.6s var(--ease-out),
+    transform 0.6s var(--ease-out);
 }
 
 .reveal.is-visible {
@@ -141,7 +145,7 @@ h3 {
   }
 }
 
-/* ---- Buttons ---- */
+/* ---- Buttons: white IS the brand action ---- */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -151,8 +155,10 @@ h3 {
   font-size: var(--text-base);
   padding: 0.7rem 1.4rem;
   border-radius: var(--radius-md);
-  transition: background var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out),
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
     transform var(--duration-fast) var(--ease-out);
 }
 
@@ -161,16 +167,24 @@ h3 {
   font-size: var(--text-lg);
 }
 
+.btn-sm {
+  padding: 0.45rem 1rem;
+  font-size: var(--text-sm);
+}
+
 .btn-primary {
-  background: var(--accent-green);
-  color: #FFFFFF;
-  box-shadow: var(--shadow-btn);
+  background: #ffffff;
+  color: #000000;
 }
 
 .btn-primary:hover {
-  background: #46C55A;
-  box-shadow: var(--shadow-btn-hover);
+  background: #e8e8e8;
   transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  background: #d3d3d4;
+  transform: translateY(0);
 }
 
 .btn-ghost {
@@ -181,5 +195,5 @@ h3 {
 
 .btn-ghost:hover {
   background: var(--bg-hover);
-  border-color: rgba(255, 255, 255, 0.24);
+  border-color: var(--text-tertiary);
 }

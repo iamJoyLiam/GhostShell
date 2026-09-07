@@ -1,119 +1,147 @@
 /* ============================================================
    Bonk — Design Tokens
-   macOS 系统风格（Apple HIG）：系统字体 + 灰白配色 +
-   真实 Bonk LightTheme 终端配色
+   Raycast marketing-system language, Bonk terminal-green accent:
+   continuous dark canvas + hairline borders + surface ladder +
+   single white CTA pill. Saturated color lives only in
+   illustrations (terminal ANSI, icon tiles, hero stripe).
    ============================================================ */
 
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
 :root {
-  /* ---- 页面（macOS 系统灰白） ---- */
-  --bg-base: #F5F5F7;
-  --bg-elevated: #FFFFFF;
-  --bg-surface: #FFFFFF;
-  --bg-hover: #F0F0F2;
-  --bg-inset: #EDEDEF;
+ /* ---- Canvas + surface ladder (dark only, no light variant) ---- */
+ --bg-base: #07080a; /* canvas */
+ --bg-elevated: #0d0d0d; /* surface */
+ --bg-surface: #101111; /* surface-elevated */
+ --bg-hover: #18191a; /* surface-card */
+ --bg-inset: #0d0d0d;
 
-  --text-primary: #1D1D1F;
-  --text-secondary: #6E6E73;
-  --text-muted: #86868B;
+ --surface-card: #18191a; /* one notch above surface: active rows, chips */
 
-  --accent-green: #1A8033;      /* Bonk LightTheme green */
-  --accent-green-dim: #146A2A;
-  --accent-amber: #996600;      /* Bonk LightTheme yellow */
-  --accent-red: #CC261A;        /* Bonk LightTheme red */
-  --accent-blue: #2659BF;       /* Bonk LightTheme blue */
-  --accent-cyan: #1A6673;       /* Bonk LightTheme cyan */
-  --accent-violet: #A633A6;     /* Bonk LightTheme magenta */
+ --text-primary: #f4f4f6; /* on-dark */
+ --text-secondary: #cdcdcd; /* body */
+ --text-muted: #9c9c9d;
+ --text-tertiary: #6a6b6c; /* faint utility */
 
-  --border-subtle: #D2D2D7;
-  --border-strong: #A1A1A6;
+ /* ---- Brand accent: terminal green (illustrations + stripe only) ---- */
+ --accent-green: #59d499;
+ --accent-green-deep: #1d7a52;
+ --accent-amber: #ffc533;
+ --accent-red: #ff6161;
+ --accent-blue: #57c1ff;
+ --accent-cyan: #5cc8e6;
+ --accent-violet: #b98ae0;
 
-  /* ---- 真实 Bonk LightTheme（终端窗口用） ---- */
-  --term-bg: #FFFFFF;           /* LightTheme.background */
-  --term-fg: #262626;           /* LightTheme.foreground */
-  --term-bar: #F2F2F4;          /* macOS 浅色标题栏 */
-  --term-border: #D2D2D7;
-  --term-green: #1A8033;        /* ANSI green */
-  --term-yellow: #996600;       /* ANSI yellow */
-  --term-red: #CC261A;          /* ANSI red */
-  --term-blue: #2659BF;         /* ANSI blue */
-  --term-cyan: #1A6673;         /* ANSI cyan */
-  --term-magenta: #A633A6;      /* ANSI magenta */
-  --term-dim: #737373;          /* bright black */
-  --term-out: #4A4A4A;
+ /* Compatibility aliases (compare pages, callouts) */
+ --accent: var(--accent-green);
+ --success: var(--accent-green);
 
-  /* ---- Typography（macOS 系统字体） ---- */
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", sans-serif;
-  --font-mono: "SF Mono", ui-monospace, "Menlo", "JetBrains Mono", monospace;
+ --border-subtle: #242728; /* hairline */
+ --border-strong: #434345; /* hairline-strong */
 
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.25rem;
-  --text-2xl: 1.5rem;
-  --text-3xl: 1.875rem;
-  --text-4xl: 2.25rem;
-  --text-5xl: 3rem;
-  --text-6xl: 3.75rem;
+ /* ---- Terminal mockup (1:1 Bonk DarkTheme: SF Mono 14, block cursor) ---- */
+ --term-bg: #1e1e1e;
+ --term-fg: #f0f0f0;
+ --term-bar: #232323;
+ --term-border: #242728;
+ --term-green: #8bd187; /* ANSI green */
+ --term-yellow: #e0be78; /* ANSI yellow */
+ --term-red: #de7070; /* ANSI red */
+ --term-blue: #7daeeb; /* ANSI blue */
+ --term-cyan: #7dc8d7; /* ANSI cyan */
+ --term-magenta: #bf91eb; /* ANSI magenta */
+ --term-dim: #737373; /* bright black */
+ --term-out: #f0f0f0;
 
-  --leading-tight: 1.15;
-  --leading-snug: 1.4;
-  --leading-normal: 1.6;
+ /* ---- Hero stripe motif (diagonal band, used once per page) ---- */
+ --stripe-start: rgba(89, 212, 153, 0.55);
+ --stripe-end: rgba(29, 122, 82, 0.05);
 
-  --tracking-tight: -0.02em;
-  --tracking-tighter: -0.035em;
-  --tracking-normal: 0;
+ /* ---- Keycap glyph depth (the system's only "depth" decoration) ---- */
+ --key-bg-start: #232425;
+ --key-bg-end: #141516;
 
-  /* ---- Spacing ---- */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.25rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
-  --space-10: 2.5rem;
-  --space-12: 3rem;
-  --space-16: 4rem;
-  --space-20: 5rem;
-  --space-24: 6rem;
-  --space-32: 8rem;
+ /* ---- Typography (Inter + ss03 signature, PingFang SC for CJK) ---- */
+ --font-sans:
+  "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+  "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+ --font-mono: "SF Mono", "JetBrains Mono", ui-monospace, "Menlo", monospace;
+ --font-feature: "calt", "kern", "liga", "ss03";
 
-  /* ---- Layout ---- */
-  --container-max: 1120px;
-  --container-narrow: 900px;
-  --container-padding: var(--space-6);
-  --nav-height: 64px;
+ --text-xs: 0.75rem;
+ --text-sm: 0.875rem;
+ --text-base: 1rem;
+ --text-lg: 1.125rem;
+ --text-xl: 1.25rem;
+ --text-2xl: 1.5rem;
+ --text-3xl: 1.875rem;
+ --text-4xl: 2.25rem;
+ --text-5xl: 3rem;
+ --text-6xl: 3.75rem;
 
-  /* ---- Radius（macOS 圆角） ---- */
-  --radius-sm: 7px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-  --radius-full: 9999px;
+ --leading-tight: 1.15;
+ --leading-snug: 1.4;
+ --leading-normal: 1.6;
 
-  /* ---- Shadow（Apple 克制） ---- */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.06);
-  --shadow-elevated: 0 2px 8px rgba(0, 0, 0, 0.06), 0 24px 64px rgba(0, 0, 0, 0.12);
-  --shadow-btn: 0 1px 2px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(26, 128, 51, 0.16);
-  --shadow-btn-hover: 0 2px 4px rgba(0, 0, 0, 0.1), 0 10px 24px rgba(26, 128, 51, 0.22);
+ --tracking-tight: -0.02em;
+ --tracking-tighter: -0.035em;
+ --tracking-normal: 0;
 
-  /* ---- Motion ---- */
-  --ease-out: cubic-bezier(0.25, 0.1, 0.25, 1);
-  --duration-fast: 150ms;
-  --duration-base: 250ms;
-  --duration-slow: 450ms;
+ /* ---- Spacing ---- */
+ --space-1: 0.25rem;
+ --space-2: 0.5rem;
+ --space-3: 0.75rem;
+ --space-4: 1rem;
+ --space-5: 1.25rem;
+ --space-6: 1.5rem;
+ --space-8: 2rem;
+ --space-10: 2.5rem;
+ --space-12: 3rem;
+ --space-16: 4rem;
+ --space-20: 5rem;
+ --space-24: 6rem;
+ --space-32: 8rem;
 
-  /* ---- Z-index ---- */
-  --z-base: 0;
-  --z-raised: 10;
-  --z-nav: 40;
+ /* ---- Layout ---- */
+ --container-max: 1120px;
+ --container-narrow: 900px;
+ --container-padding: var(--space-6);
+ --nav-height: 56px;
+
+ /* ---- Radius (6–16px system) ---- */
+ --radius-sm: 6px;
+ --radius-md: 8px;
+ --radius-lg: 12px;
+ --radius-xl: 16px;
+ --radius-full: 9999px;
+
+ /* ---- Elevation comes from the surface ladder, never shadows ---- */
+ --shadow-card: none;
+ --shadow-elevated: none;
+ --shadow-btn: none;
+ --shadow-btn-hover: none;
+
+ /* ---- Motion ---- */
+ --ease-out: cubic-bezier(0.25, 0.1, 0.25, 1);
+ --duration-fast: 150ms;
+ --duration-base: 250ms;
+ --duration-slow: 450ms;
+
+ /* ---- Gradient word + hero glow (scarce accents) ---- */
+ --grad-start: #8ff0bd;
+ --grad-end: #2fae72;
+ --glow: rgba(89, 212, 153, 0.14);
+
+ /* ---- Z-index ---- */
+ --z-base: 0;
+ --z-raised: 10;
+ --z-nav: 40;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root {
-    --duration-fast: 0ms;
-    --duration-base: 0ms;
-    --duration-slow: 0ms;
-  }
+ :root {
+  --duration-fast: 0ms;
+  --duration-base: 0ms;
+  --duration-slow: 0ms;
+ }
 }
