@@ -22,14 +22,14 @@ public final nonisolated class PTYSession: @unchecked Sendable {
     private let bufferByteCount = OSAllocatedUnfairLock<Int>(uncheckedState: 0)
     private static let maxBufferSize = 10000
     private static let maxBufferBytes = 10 * 1024 * 1024 // 10 MB
-    private static let maxChunkBytes = 64 * 1024 // 64 KB per chunk
+    static let maxChunkBytes = 64 * 1024 // 64 KB per chunk
     private static let maxCols = 500
     private static let maxRows = 200
 
     /// Live output continuations — yields new data to all active feed tasks.
-    private let liveContinuations = OSAllocatedUnfairLock<[UUID: AsyncStream<String>.Continuation]>(uncheckedState: [:])
+    let liveContinuations = OSAllocatedUnfairLock<[UUID: AsyncStream<String>.Continuation]>(uncheckedState: [:])
     /// Raw output consumers used by process-backed command adapters.
-    private let rawLiveContinuations = OSAllocatedUnfairLock<[UUID: AsyncStream<String>.Continuation]>(uncheckedState: [:])
+    let rawLiveContinuations = OSAllocatedUnfairLock<[UUID: AsyncStream<String>.Continuation]>(uncheckedState: [:])
 
     /// Per-consumer pending byte tracking for backpressure control.
     /// Prevents slow consumers from accumulating unbounded buffered data.
@@ -44,27 +44,31 @@ public final nonisolated class PTYSession: @unchecked Sendable {
     private let sessionEndStream: AsyncStream<Void>
     private let sessionEndContinuation: AsyncStream<Void>.Continuation
 
-    private let writerBox = NIOLockedValueBox<TTYStdinWriter?>(nil)
-    private let readerTaskBox = NIOLockedValueBox<Task<Void, Never>?>(nil)
+    let writerBox = NIOLockedValueBox<TTYStdinWriter?>(nil)
+    /// SSH channel state. Serial/process sessions report via serialFD, but SSH-channel
+    /// sessions never touch serialFD (stays -1) — without this flag isClosed would
+    /// always report true for them and every probe would fail on healthy connections.
+    private let channelReadyBox = NIOLockedValueBox<Bool>(false)
+    let readerTaskBox = NIOLockedValueBox<Task<Void, Never>?>(nil)
     private let inboundTaskBox = NIOLockedValueBox<Task<Void, Never>?>(nil)
     /// Serial port file descriptor. -1 when the session is not backed by a serial port.
-    private let serialFDBox = NIOLockedValueBox<Int32>(-1)
+    let serialFDBox = NIOLockedValueBox<Int32>(-1)
     /// Whether the fd is owned by this session (serial) or by an external
     /// transport such as the OpenSSH subprocess (process mode).
-    private let ownsFDBox = OSAllocatedUnfairLock<Bool>(uncheckedState: true)
+    let ownsFDBox = OSAllocatedUnfairLock<Bool>(uncheckedState: true)
     /// Process mode enables PTY resize over the same fd; serial mode ignores resize.
-    private let processModeBox = OSAllocatedUnfairLock<Bool>(uncheckedState: false)
+    let processModeBox = OSAllocatedUnfairLock<Bool>(uncheckedState: false)
     /// Optional raw process hook, called before UI output transformation.
-    private let processOutputHandlerBox = NIOLockedValueBox<(@Sendable (Data) -> Void)?>(nil)
+    let processOutputHandlerBox = NIOLockedValueBox<(@Sendable (Data) -> Void)?>(nil)
     /// Bytes typed while the SSH channel is still opening (first connect or
     /// reconnect). Flushed in order once the writer becomes available, so
     /// input right after a reconnect is never silently dropped.
     private let pendingInputBox = NIOLockedValueBox<[ByteBuffer]>([])
-    private let onUnexpectedCloseBox = NIOLockedValueBox<(@Sendable () -> Void)?>(nil)
+    let onUnexpectedCloseBox = NIOLockedValueBox<(@Sendable () -> Void)?>(nil)
     private let onWriteFailedBox = NIOLockedValueBox<(@Sendable () -> Void)?>(nil)
     /// Set by close() so the reader task knows the close was user-initiated
     /// and must NOT report an unexpected disconnect.
-    private let userClosedBox = NIOLockedValueBox<Bool>(false)
+    let userClosedBox = NIOLockedValueBox<Bool>(false)
     private static let maxPendingInputBytes = 64 * 1024
 
     /// Optional tap on bytes typed into the PTY (used to capture manual
@@ -93,7 +97,7 @@ public final nonisolated class PTYSession: @unchecked Sendable {
     let osc7Detector = PTYOSC7Detector()
 
     /// Zmodem handler for file transfer support.
-    private(set) var zmodemHandler: ZmodemHandler?
+    var zmodemHandler: ZmodemHandler?
 
     /// Shell integration tracker (OSC 133)
     let shellIntegration = ShellIntegration()
@@ -103,8 +107,13 @@ public final nonisolated class PTYSession: @unchecked Sendable {
     private let activeCommandBlock = NIOLockedValueBox<CommandBlock?>(nil)
     private static let maxCommandBlocks = 120
     private static let maxBlockOutputBytes = 256 * 1024
-    func allCommandBlocks() -> [CommandBlock] { commandBlocks.withLock { $0 } }
-    func clearCommandBlocks() { commandBlocks.withLock { $0.removeAll() } }
+    func allCommandBlocks() -> [CommandBlock] {
+        commandBlocks.withLock { $0 }
+    }
+
+    func clearCommandBlocks() {
+        commandBlocks.withLock { $0.removeAll() }
+    }
 
     /// One-shot output observers for command-response patterns (e.g., getCWD).
     private typealias ObserverClosure = @Sendable (String) -> Void
@@ -121,6 +130,7 @@ public final nonisolated class PTYSession: @unchecked Sendable {
         get { hostItemBox.withLockedValue { $0 } }
         set { hostItemBox.withLockedValue { $0 = newValue } }
     }
+
     // /  generation —  SSHConnectionConfig.generation ， Attempt
     private let generationBox = NIOLockedValueBox<UUID?>(nil)
     var generation: UUID? {
@@ -216,7 +226,7 @@ public final nonisolated class PTYSession: @unchecked Sendable {
     /// stripping, no charset handling — SwiftTerm owns VT interpretation on the
     /// rendering branch, the recorder must preserve `ESC ( 0` line-drawing, H3C
     /// charset switches, full-width chars, bare `\b` / `\r`, etc.
-    private func yieldOutput(_ text: String) {
+    func yieldOutput(_ text: String) {
         if let pid = recordingPaneIDBox.withLockedValue({ $0 }) {
             let raw = text
             Task { await SessionRecordingService.shared.recordOutput(paneID: pid, text: raw) }
@@ -234,7 +244,7 @@ public final nonisolated class PTYSession: @unchecked Sendable {
         let shellEvents = shellIntegration.process(text: text, lineCount: outputBuffer.withLock { $0.count })
         for event in shellEvents {
             switch event {
-            case .commandStart(let range):
+            case let .commandStart(range):
                 // Command submitted — clear any reported line-editor buffer so
                 // stale ground truth can't repopulate the input buffer.
                 NotificationCenter.default.post(
@@ -251,7 +261,7 @@ public final nonisolated class PTYSession: @unchecked Sendable {
                     endChunkIndex: nil
                 )
                 activeCommandBlock.withLockedValue { $0 = block }
-            case .commandEnd(let range, let exitCode):
+            case let .commandEnd(range, exitCode):
                 if var active = activeCommandBlock.withLockedValue({ $0 }), active.id == range.id {
                     // Output slice will be filled after buffering this chunk; defer to after buffer append.
                     active.exitCode = exitCode
@@ -273,7 +283,7 @@ public final nonisolated class PTYSession: @unchecked Sendable {
                     )
                     activeCommandBlock.withLockedValue { $0 = block }
                 }
-            case .bufferReport(let buffer):
+            case let .bufferReport(buffer):
                 // Live line-editor buffer from shell integration (OSC 133;9).
                 // Ground truth for the inline Editor's typed text.
                 NotificationCenter.default.post(
@@ -324,7 +334,7 @@ public final nonisolated class PTYSession: @unchecked Sendable {
             let startIndex = min(max(pending.startChunkIndex, 0), max(0, snapshot.count - 1))
             let endIndex = min(pending.endChunkIndex ?? snapshot.count, snapshot.count)
             var output = ""
-            if startIndex < endIndex { output = snapshot[startIndex..<endIndex].joined() }
+            if startIndex < endIndex { output = snapshot[startIndex ..< endIndex].joined() }
             // Strip OSC sequences and trim
             output = output.replacingOccurrences(of: "\u{1B}]133;[^\u{07}]*\u{07}", with: "", options: .regularExpression)
             if output.utf8.count > Self.maxBlockOutputBytes {
@@ -400,6 +410,7 @@ public final nonisolated class PTYSession: @unchecked Sendable {
 
                     // Propagate writer to instance property (sendInput/resize read from here)
                     self.writerBox.withLockedValue { $0 = outbound }
+                    self.channelReadyBox.withLockedValue { $0 = true }
                     self.flushPendingInput(to: outbound)
 
                     // Flush any pending resize that was queued before channel was ready
@@ -421,7 +432,8 @@ public final nonisolated class PTYSession: @unchecked Sendable {
                                 case let .stdout(buf):
                                     // Raw Zmodem header check before String conversion (binary-safe)
                                     if let bytes = buf.getBytes(at: buf.readerIndex, length: buf.readableBytes),
-                                       ZmodemHandler.containsZmodemHeader(in: bytes) {
+                                       ZmodemHandler.containsZmodemHeader(in: bytes)
+                                    {
                                         if self.zmodemHandler == nil { self.setupZmodem() }
                                         self.zmodemHandler?.processData(bytes)
                                     } else if let handler = self.zmodemHandler, case .receivingFile = handler.state {
@@ -450,8 +462,10 @@ public final nonisolated class PTYSession: @unchecked Sendable {
                     self.inboundTaskBox.withLockedValue { $0 = inboundTask }
 
                     for await _ in endStream {}
+                    self.channelReadyBox.withLockedValue { $0 = false }
                 }
             } catch {
+                self.channelReadyBox.withLockedValue { $0 = false }
                 self.liveContinuations.withLock { $0 }.values.forEach { $0.finish() }
                 endCont.finish()
             }
@@ -666,7 +680,23 @@ public final nonisolated class PTYSession: @unchecked Sendable {
     /// Whether this session has been closed (user-initiated or via reader EOF).
     public var isClosed: Bool {
         if userClosedBox.withLockedValue({ $0 }) { return true }
-        return serialFDBox.withLockedValue { $0 } < 0
+        // Serial/process sessions report via fd; SSH-channel sessions never set
+        // serialFD, so fall through to the channel flag for them.
+        if serialFDBox.withLockedValue({ $0 }) >= 0 { return false }
+        return !channelReadyBox.withLockedValue { $0 }
+    }
+
+    /// Waits for the SSH channel to open (start() is fire-and-forget). Returns false
+    /// on user close or timeout instead of reading stale pre-open state.
+    func waitForChannelReady(timeoutSeconds: Double = 5) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        while Date() < deadline {
+            if Task.isCancelled { return false }
+            if userClosedBox.withLockedValue({ $0 }) { return false }
+            if channelReadyBox.withLockedValue({ $0 }) { return true }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return channelReadyBox.withLockedValue { $0 }
     }
 
     /// Optional cleanup for the process backing this session (OpenSSH
@@ -691,6 +721,7 @@ public final nonisolated class PTYSession: @unchecked Sendable {
         // not fire onUnexpectedClose when it notices the fd is gone. Only
         // genuinely unexpected disconnects should surface as errors.
         userClosedBox.withLockedValue { $0 = true }
+        channelReadyBox.withLockedValue { $0 = false }
         readerTaskBox.withLockedValue { $0?.cancel(); $0 = nil }
         inboundTaskBox.withLockedValue { $0?.cancel(); $0 = nil }
         writerBox.withLockedValue { $0 = nil }
@@ -715,190 +746,6 @@ public final nonisolated class PTYSession: @unchecked Sendable {
         sessionEndContinuation.finish()
         // Reset echo correlation for this PTY lifecycle
         PTYEchoTracker.shared.reset()
-    }
-
-    // MARK: - Serial Port Mode
-
-    /// Start reading from a serial port file descriptor.
-    /// The session owns the descriptor and closes it on disconnect.
-    func startSerial(fileDescriptor: Int32) {
-        serialFDBox.withLockedValue { $0 = fileDescriptor }
-        ownsFDBox.withLock { $0 = true }
-        processModeBox.withLock { $0 = false }
-        startReading(fileDescriptor: fileDescriptor)
-    }
-
-    /// Start reading from an OpenSSH subprocess PTY fd.
-    /// The external transport owns the descriptor; this session only reads/writes it.
-    func startProcess(
-        fileDescriptor: Int32,
-        onExit: @escaping @Sendable () -> Void,
-        onOutput: (@Sendable (Data) -> Void)? = nil
-    ) {
-        let capturedGeneration = generation
-        serialFDBox.withLockedValue { $0 = fileDescriptor }
-        ownsFDBox.withLock { $0 = false }
-        processModeBox.withLock { $0 = true }
-        processOutputHandlerBox.withLockedValue { $0 = onOutput }
-        onUnexpectedClose = onExit
-        startReading(fileDescriptor: fileDescriptor, generation: capturedGeneration)
-    }
-
-    private func startReading(fileDescriptor: Int32) {
-        startReading(fileDescriptor: fileDescriptor, generation: nil)
-    }
-
-    private func startReading(fileDescriptor: Int32, generation: UUID?) {
-        let task = Task.detached(priority: .userInitiated) { [weak self] in
-            let bufferSize = 4096
-            var buffer = [UInt8](repeating: 0, count: bufferSize)
-
-            while !Task.isCancelled {
-                if let gen = generation, let currentGen = self?.generation, gen != currentGen {
-                    Log.ssh.info("[PTY] Discard stale read task: gen=\(gen.uuidString.prefix(8)) != current=\(currentGen.uuidString.prefix(8))")
-                    break
-                }
-                var pollDescriptor = pollfd(
-                    fd: fileDescriptor,
-                    events: Int16(POLLIN),
-                    revents: 0
-                )
-                let pollResult = poll(&pollDescriptor, 1, 100)
-                if pollResult < 0 {
-                    if errno == EINTR { continue }
-                    break
-                }
-                if pollResult == 0 { continue }
-                if pollDescriptor.revents & Int16(POLLHUP | POLLERR | POLLNVAL) != 0 {
-                    break
-                }
-                guard pollDescriptor.revents & Int16(POLLIN) != 0 else { continue }
-
-                let bytesRead = read(fileDescriptor, &buffer, bufferSize)
-                if bytesRead > 0 {
-                    self?.yieldSerialOutput(Data(buffer[0 ..< bytesRead]))
-                } else if bytesRead < 0 {
-                    if errno != EINTR { break }
-                } else {
-                    break
-                }
-            }
-
-            self?.finishSerial(fileDescriptor: fileDescriptor)
-        }
-        readerTaskBox.withLockedValue { $0 = task }
-    }
-
-    private func yieldSerialOutput(_ data: Data) {
-        processOutputHandlerBox.withLockedValue { $0 }?(data)
-        for chunk in Self.chunkData(data) {
-            yieldOutput(String(bytes: chunk, encoding: .utf8) ?? "")
-        }
-    }
-
-    private func finishSerial(fileDescriptor: Int32) {
-        let ownedFD: Int32 = serialFDBox.withLockedValue { current in
-            let value = current
-            current = -1
-            guard value == fileDescriptor else { return -1 }
-            return ownsFDBox.withLock({ $0 }) ? value : -1
-        }
-        if ownedFD >= 0 { Darwin.close(ownedFD) }
-
-        liveContinuations.withLock { $0 }.values.forEach { $0.finish() }
-        rawLiveContinuations.withLock { $0 }.values.forEach { $0.finish() }
-        let userClosed = userClosedBox.withLockedValue { $0 }
-        if !userClosed {
-            onUnexpectedCloseBox.withLockedValue { $0 }?()
-        }
-    }
-
-    /// Split Data into UTF-8-safe chunks so escape sequences are not truncated.
-    private static func chunkData(_ data: Data) -> [Data] {
-        guard data.count > maxChunkBytes else { return [data] }
-
-        var chunks: [Data] = []
-        var offset = 0
-        while offset < data.count {
-            var end = min(offset + maxChunkBytes, data.count)
-            if end < data.count {
-                while end > offset, data[end] & 0xC0 == 0x80 {
-                    end -= 1
-                }
-            }
-            if end <= offset { end = min(offset + maxChunkBytes, data.count) }
-            chunks.append(data.subdata(in: offset ..< end))
-            offset = end
-        }
-        return chunks
-    }
-
-    // MARK: - Zmodem Support
-
-    /// Initialize Zmodem handler for file transfer.
-    func setupZmodem() {
-        let handler = ZmodemHandler()
-        handler.onSendData = { [weak self] data in
-            Task {
-                try? await self?.sendRawBytes(data)
-            }
-        }
-        handler.onReceiveFileRequest = { info in
-            // Auto-save to Downloads; return nil would cancel. Main-thread safe (FileManager only).
-            let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
-            var dest = downloads.appendingPathComponent(info.name)
-            // Avoid overwriting: add suffix if exists
-            var counter = 1
-            let ext = dest.pathExtension
-            let base = dest.deletingPathExtension().lastPathComponent
-            while FileManager.default.fileExists(atPath: dest.path) {
-                let newName = ext.isEmpty ? "\(base)_\(counter)" : "\(base)_\(counter).\(ext)"
-                dest = downloads.appendingPathComponent(newName)
-                counter += 1
-            }
-            return dest
-        }
-        handler.onProgress = { progress in
-            Log.ssh.debug("[Zmodem] progress \(Int(progress * 100))%")
-        }
-        handler.onCompletion = { result in
-            switch result {
-            case .success(let url): Log.ssh.info("[Zmodem] completed \(url?.lastPathComponent ?? "done")")
-            case .failure(let err): Log.ssh.error("[Zmodem] failed \(err.localizedDescription)")
-            }
-        }
-        zmodemHandler = handler
-    }
-
-    /// Start Zmodem file send.
-    public func startZmodemSend(files: [URL]) {
-        let handler = zmodemHandler ?? {
-            setupZmodem()
-            return zmodemHandler!
-        }()
-        handler.startSend(files: files)
-    }
-
-    /// Start Zmodem file receive.
-    public func startZmodemReceive() {
-        let handler = zmodemHandler ?? {
-            setupZmodem()
-            return zmodemHandler!
-        }()
-        handler.startReceive()
-    }
-
-    /// Cancel Zmodem transfer.
-    public func cancelZmodem() {
-        zmodemHandler?.cancel()
-    }
-
-    /// Send raw bytes to the PTY.
-    private func sendRawBytes(_ bytes: [UInt8]) async throws {
-        guard let writer = writerBox.withLockedValue({ $0 }) else { return }
-        var buffer = ByteBuffer()
-        buffer.writeBytes(bytes)
-        try await writer.write(buffer)
     }
 
     // MARK: - ByteBuffer Chunking

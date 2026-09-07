@@ -29,7 +29,7 @@ struct AIChatSidebarView: View {
     @AppStorage("ai_agent_access_mode") var agentAccessModeRaw = "supervised"
 
     private var matchingSlashCommands: [AISlashCommand] {
-        guard inputText.hasPrefix("/") && !inputText.contains(" ") else { return [] }
+        guard inputText.hasPrefix("/"), !inputText.contains(" ") else { return [] }
         let query = inputText.lowercased()
         if query == "/" { return AISlashCommand.allCases }
         return AISlashCommand.allCases.filter { $0.title.lowercased().hasPrefix(query) }
@@ -280,7 +280,13 @@ struct AIChatSidebarView: View {
                     return .handled
                 }
                 .onKeyPress(.return) {
-                    if isPopupOpen && !NSEvent.modifierFlags.contains(.shift) {
+                    // While the IME is composing (e.g. Pinyin candidate selection), Return confirms
+                    // the candidate and must reach the input method — otherwise uncommitted
+                    // composition text would be sent as-is.
+                    if isIMEComposing {
+                        return .ignored
+                    }
+                    if isPopupOpen, !NSEvent.modifierFlags.contains(.shift) {
                         acceptSelectedPopupItem()
                         return .handled
                     }
@@ -291,6 +297,8 @@ struct AIChatSidebarView: View {
                     return .ignored
                 }
                 .onSubmit {
+                    // Same as onKeyPress above: ignore submits triggered by IME composition commits.
+                    if isIMEComposing { return }
                     if !NSEvent.modifierFlags.contains(.shift) {
                         submit()
                     }
@@ -340,8 +348,7 @@ struct AIChatSidebarView: View {
 
     private func restoreLastConversation() {
         guard currentConversation == nil,
-              let lastID = conversationStore.lastConversationID
-        else { return }
+              let lastID = conversationStore.lastConversationID else { return }
         currentConversation = conversations.first(where: { $0.id == lastID })
     }
 
@@ -529,6 +536,12 @@ struct AIChatSidebarView: View {
         }
     }
 
+    /// Whether an IME is currently composing (e.g. Pinyin candidate selection). Return during
+    /// composition confirms the candidate and must reach the input method, never trigger send.
+    private var isIMEComposing: Bool {
+        (NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText() == true
+    }
+
     private func submit() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
@@ -683,5 +696,4 @@ struct AIChatSidebarView: View {
             engine.isProcessing = false
         }
     }
-
 }

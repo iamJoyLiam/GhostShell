@@ -6,6 +6,37 @@
     <channel>
         <title>Bonk</title>
         <item>
+            <title>2026.3.1</title>
+            <pubDate>Mon, 07 Sep 2026 10:21:00 +0800</pubDate>
+            <sparkle:version>20263001</sparkle:version>
+            <sparkle:shortVersionString>2026.3.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[
+## Changes
+
+- Fixed AI assistant sending unconfirmed IME text (e.g. Pinyin) when pressing Enter; confirming a candidate no longer submits the message.
+- Fixed agent mode repeating the same tool calls; repeated failures now stop the loop and return a summary.
+- Fixed SSH liveness checks marking healthy sessions as dead, which caused repeated reconnect prompts and unrecoverable sessions after network changes or sleep/wake.
+- Fixed reconnected sessions leaving agent and SFTP commands on the previous connection.
+            ]]></description>
+            <enclosure
+                url="https://github.com/iamJoyLiam/Bonk/releases/download/v2026.3.1/Bonk-2026.3.1-arm64.dmg"
+                length="24156321"
+                type="application/octet-stream"
+                sparkle:edSignature="W3Op4WIrbxQFZ9YIYQ4uTUaS0GRaD/pn1IB4m5FWHx4ztZogtwnDf+ovU8lnogPxhwZ7lqRY3E9iRFcvvfaeBw=="
+                sparkle:os="macos"
+                sparkle:cpuAffinity="arm64"
+            />
+            <enclosure
+                url="https://github.com/iamJoyLiam/Bonk/releases/download/v2026.3.1/Bonk-2026.3.1-x86_64.dmg"
+                length="25320037"
+                type="application/octet-stream"
+                sparkle:edSignature="YUlPnEGsZM/MBh1Z4MpwlvAS9SR11d+rOKf2EsbakgOVy4Ya6s42ABSW83hSE1ly+SUqtjSFbwlNe1hHU4C+BQ=="
+                sparkle:os="macos"
+                sparkle:cpuAffinity="x86_64"
+            />
+        </item>
+        <item>
             <title>2026.3.0</title>
             <pubDate>Sat, 05 Sep 2026 17:52:00 +0800</pubDate>
             <sparkle:version>20263000</sparkle:version>

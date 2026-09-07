@@ -8,9 +8,9 @@
 @preconcurrency import Citadel
 import Crypto
 import Foundation
+import Network
 import NIOConcurrencyHelpers
 import NIOCore
-import Network
 @preconcurrency import NIOSSH
 import os.log
 
@@ -23,23 +23,23 @@ import os.log
 /// PTY-based interactive shell streams, and automatic reconnection with
 /// exponential backoff + jitter.
 public actor SSHNetworkService {
-    public private(set) var connectionState: SSHConnectionState = .disconnected
+    public internal(set) var connectionState: SSHConnectionState = .disconnected
 
     /// State stream for external observation (SessionManager subscribes to this).
     public let stateStream: AsyncStream<SSHConnectionState>
-    private let stateContinuation: AsyncStream<SSHConnectionState>.Continuation
+    let stateContinuation: AsyncStream<SSHConnectionState>.Continuation
 
     /// Expose client for port forwarding. Returns nil if not connected.
     public var sshClient: SSHClient? {
         client
     }
 
-    private var client: SSHClient?
+    var client: SSHClient?
     /// Separate native Citadel connection used only by legacy SFTP flow when
     /// the terminal transport is system OpenSSH.
     private var sftpNativeClient: SSHClient?
-    private var config: SSHConnectionConfig?
-    private var activePTYSession: PTYSession?
+    var config: SSHConnectionConfig?
+    var activePTYSession: PTYSession?
     /// Called with a manually typed password the server accepted, so the
     /// saved credential can be refreshed.
     private var onManualPasswordVerified: (@Sendable (String) -> Void)?
@@ -49,51 +49,60 @@ public actor SSHNetworkService {
     public func setManualPasswordHandler(_ handler: (@Sendable (String) -> Void)?) {
         onManualPasswordVerified = handler
     }
+
     #if os(macOS)
         /// System OpenSSH transport for macOS terminal/exec/forwarding auth.
-        private var openSSHBackend: OpenSSHBackend?
+        var openSSHBackend: OpenSSHBackend?
     #endif
-    private var usesOpenSSHTransport = false
-    private let keepAlive = SSHKeepAlive()
+    var usesOpenSSHTransport = false
+    let keepAlive = SSHKeepAlive()
     /// Per-session supervisor - replaces isHandlingDisconnect Bool with state machine per P0 spec.
-    private let supervisor = SSHConnectionSupervisor()
+    let supervisor = SSHConnectionSupervisor()
     private var wakeMonitorTask: Task<Void, Never>?
     /// ConnectionAttemptID per hard constraint 3 - old callbacks with stale ID are discarded
-    private let attemptIDBox = NIOLockedValueBox<UUID>(UUID())
-    private var currentAttemptID: UUID {
+    let attemptIDBox = NIOLockedValueBox<UUID>(UUID())
+    var currentAttemptID: UUID {
         get { attemptIDBox.withLockedValue { $0 } }
         set { attemptIDBox.withLockedValue { $0 = newValue } }
     }
+
     /// Current reconnection loop, so manual disconnect/reconnect can cancel it.
     private var reconnectTask: Task<Void, Never>?
 
     /// Network monitor for detecting connectivity changes.
-    private var networkMonitor: NWPathMonitor?
-    private var isMonitoringNetwork = false
-    private var lastNetworkPathWasSatisfied: Bool?
+    var networkMonitor: NWPathMonitor?
+    var isMonitoringNetwork = false
+    var lastNetworkPathWasSatisfied: Bool?
     /// Whether we're waiting for network to come back (for delayed reconnect).
-    private var isWaitingForNetwork = false
+    var isWaitingForNetwork = false
 
     /// Stores PTY parameters for reconnection.
-    private struct PTYConfig {
+    struct PTYConfig {
         let cols: Int
         let rows: Int
         let termType: String
     }
 
-    private var lastPTYConfig: PTYConfig?
-    private var lastSuccessfulConnectionAt: Date?
+    var lastPTYConfig: PTYConfig?
+    var lastSuccessfulConnectionAt: Date?
     /// Last typed failure for gate & debug — set by handleTypedFailure
-    private var pendingFailure: SSHFailure?
+    var pendingFailure: SSHFailure?
+    /// Write-failure recovery tracking: probe-alive after a channel write failure does not
+    /// recreate the channel, so a half-dead channel passes the probe forever while every
+    /// keystroke fails. Count consecutive write-failure/probe-alive cycles and escalate to
+    /// a full reconnect instead of restoring the UI in a loop.
+    private var pendingWriteFailureValidation = false
+    private var consecutiveWriteFailedAliveCycles = 0
+    private static let maxWriteFailedAliveCycles = 3
     /// Callback for SessionManager to present AuthRetrySheet on typed auth failure (including reconnect PTYs)
     private var onAuthFailureHandler: (@Sendable (SSHFailure) -> Void)?
 
     /// PTY session created after reconnect — SessionManager consumes this.
-    public private(set) var pendingPTYSession: PTYSession?
+    public internal(set) var pendingPTYSession: PTYSession?
 
-    private let hostKeyStore: any SSHHostKeyStore
-    // VNext — forced backend for Hybrid routing (T2.2). When set, overrides shouldUseOpenSSH.
-    private var vnextForcedBackend: SSHBackendType?
+    let hostKeyStore: any SSHHostKeyStore
+    /// VNext — forced backend for Hybrid routing (T2.2). When set, overrides shouldUseOpenSSH.
+    var vnextForcedBackend: SSHBackendType?
 
     public init(hostKeyStore: some SSHHostKeyStore) {
         self.hostKeyStore = hostKeyStore
@@ -138,7 +147,7 @@ public actor SSHNetworkService {
     // MARK: - Connect
 
     /// Connection timeout — prevents hanging on unreachable hosts.
-    private static let connectionTimeoutSeconds: Int = 10
+    static let connectionTimeoutSeconds: Int = 10
 
     public func connect(config: SSHConnectionConfig) async throws {
         Log.ssh.info("[CONNECT] Starting connect to \(config.host):\(config.port)")
@@ -245,7 +254,7 @@ public actor SSHNetworkService {
     }
 
     /// Shared SSH connection logic used by both connect() and reconnect().
-    private func establishConnection(config: SSHConnectionConfig) async throws {
+    func establishConnection(config: SSHConnectionConfig) async throws {
         let sshClient = try await makeNativeClient(config: config)
         client = sshClient
         connectionState = .connected
@@ -421,6 +430,7 @@ public actor SSHNetworkService {
         guard let client else { throw SSHServiceError.notConnected }
 
         lastPTYConfig = PTYConfig(cols: cols, rows: rows, termType: termType)
+        lastSuccessfulConnectionAt = Date()
         let session = PTYSession()
         session.generation = capturedAttemptID
         session.onWriteFailed = { [weak self] in
@@ -458,9 +468,44 @@ public actor SSHNetworkService {
 
     /// Funnel for PTY write failures: flip the state stream to the reconnecting
     /// spinner first, then run supervisor recovery (probe → reconnect).
-    private func handlePTYWriteFailed() {
-        presentReconnectingForChannelLost()
+    func handlePTYWriteFailed() {
+        pendingWriteFailureValidation = true
+        // Throttle the UI flip: the supervisor pipeline is idempotent, but every
+        // keystroke on a dead channel would otherwise re-trigger the spinner.
+        if !isReconnecting {
+            presentReconnectingForChannelLost()
+        }
         Task { await supervisor.requestRecovery(reason: .writeFailed) }
+    }
+
+    /// Whether the connection state stream is already showing reconnecting.
+    private var isReconnecting: Bool {
+        if case .reconnecting = connectionState { return true }
+        return false
+    }
+
+    /// Probe reported alive. If a channel write failure is pending validation, the probe
+    /// only proved the transport is up — the channel itself may still be half-dead.
+    /// Escalate to a full reconnect (recreates the PTY) after repeated cycles instead
+    /// of restoring the UI and failing on the next keystroke.
+    private func handleProbeAlive() async {
+        guard pendingWriteFailureValidation else {
+            consecutiveWriteFailedAliveCycles = 0
+            return
+        }
+        pendingWriteFailureValidation = false
+        consecutiveWriteFailedAliveCycles += 1
+        guard consecutiveWriteFailedAliveCycles >= Self.maxWriteFailedAliveCycles else {
+            restoreConnectedAfterProbeAlive()
+            return
+        }
+        consecutiveWriteFailedAliveCycles = 0
+        Log.ssh.warning("[RECOVERY] channel write still failing after probe alive — full reconnect")
+        if await performSingleReconnect() {
+            restoreConnectedAfterProbeAlive()
+        } else {
+            await supervisor.requestRecovery(reason: .writeFailed)
+        }
     }
 
     /// Probe found the transport alive — undo the optimistic reconnecting
@@ -498,9 +543,9 @@ public actor SSHNetworkService {
     }
 
     /// Typed failure handler — central Recovery gate logging
-    private func handleTypedFailure(_ failure: SSHFailure) async {
+    func handleTypedFailure(_ failure: SSHFailure) async {
         switch failure {
-        case .authentication(let authFailure):
+        case let .authentication(authFailure):
             Log.ssh.info("[SSH_FAILURE] type=authentication backend=\(self.usesOpenSSHTransport ? "openssh" : "citadel", privacy: .public) detail=\(authFailure.message.prefix(120), privacy: .public)")
             Log.ssh.info("[RECOVERY_GATE] blocked=true reason=authenticationFailed")
             await self.suppressRecoveryForAuth()
@@ -508,7 +553,7 @@ public actor SSHNetworkService {
             self.stopWakeMonitoring()
             // SessionManager  sheet reconnect PTY
             if let handler = self.onAuthFailureHandler { handler(failure) }
-        case .hostKey(let hostKeyMessage):
+        case let .hostKey(hostKeyMessage):
             Log.ssh.info("[SSH_FAILURE] type=hostKey backend=\(self.usesOpenSSHTransport ? "openssh" : "citadel", privacy: .public) msg=\(hostKeyMessage.prefix(80), privacy: .public)")
             Log.ssh.info("[RECOVERY_GATE] blocked=true reason=hostKey")
             await self.suppressRecoveryForAuth()
@@ -519,11 +564,11 @@ public actor SSHNetworkService {
             Log.ssh.info("[RECOVERY_GATE] blocked=true reason=cancelled")
             await self.supervisor.suppressRecoveryForAuth()
             self.pendingFailure = failure
-        case .transport(let transportFailure):
+        case let .transport(transportFailure):
             Log.ssh.info("[SSH_FAILURE] type=transport backend=\(self.usesOpenSSHTransport ? "openssh" : "citadel", privacy: .public) detail=\(transportFailure.message.prefix(120), privacy: .public)")
             Log.ssh.info("[RECOVERY_GATE] blocked=false reason=transportFailed")
             self.pendingFailure = failure
-        case .unknown(let unknownMessage):
+        case let .unknown(unknownMessage):
             Log.ssh.info("[SSH_FAILURE] type=unknown backend=\(self.usesOpenSSHTransport ? "openssh" : "citadel", privacy: .public) msg=\(unknownMessage.prefix(80), privacy: .public)")
             self.pendingFailure = failure
         }
@@ -555,67 +600,6 @@ public actor SSHNetworkService {
         connectionState = .disconnected
         stateContinuation.yield(.disconnected)
         config = nil
-    }
-
-    // MARK: - Network Monitoring
-
-    /// Start monitoring network connectivity changes.
-    private func startNetworkMonitor() {
-        guard !isMonitoringNetwork else { return }
-        isMonitoringNetwork = true
-        // A cancelled NWPathMonitor cannot be restarted — always build a
-        // fresh instance (stopNetworkMonitor() cancels the previous one).
-        let monitor = NWPathMonitor()
-        networkMonitor = monitor
-        let queue = DispatchQueue(label: "com.bonk.ssh.network-monitor")
-        monitor.pathUpdateHandler = { [weak self] path in
-            Task {
-                await self?.handleNetworkChange(path)
-            }
-        }
-        monitor.start(queue: queue)
-    }
-
-    /// Stop monitoring network connectivity.
-    private func stopNetworkMonitor() {
-        networkMonitor?.cancel()
-        networkMonitor = nil
-        isMonitoringNetwork = false
-        isWaitingForNetwork = false
-    }
-
-    /// Handle network connectivity changes - funnel through supervisor per P0.
-    /// Fix 3: only on unsatisfied->satisfied transition + per-session health gate
-    private func handleNetworkChange(_ path: NWPath) async {
-        let isSatisfied = path.status == .satisfied
-        defer { lastNetworkPathWasSatisfied = isSatisfied }
-        guard isSatisfied else { return }
-        // Only trigger on transition, not every satisfied event (NWPathMonitor is app-global)
-        if lastNetworkPathWasSatisfied == true {
-            Log.ssh.info("[NETWORK] ignore networkChanged - already satisfied (spurious)")
-            return
-        }
-        guard config != nil else { return }
-        if case .connecting = connectionState {
-            Log.ssh.info("[NETWORK] ignore networkChanged during connecting")
-            return
-        }
-        if usesOpenSSHTransport, activePTYSession == nil, lastPTYConfig == nil {
-            Log.ssh.info("[NETWORK] ignore networkChanged - PTY not yet created (connect window)")
-            return
-        }
-        if let typedFailure = pendingFailure, typedFailure.isAuthentication || typedFailure.typeString == "hostKey" || typedFailure.typeString == "cancelled" {
-            Log.ssh.info("[RECOVERY_GATE] blocked=true reason=\(typedFailure.typeString, privacy: .public) handleNetworkChange suppressed")
-            return
-        }
-        // Per-session health check: if transport/PTY still alive, ignore (Fix 3)
-        let alive = await probeLiveness()
-        if alive {
-            Log.ssh.info("[NETWORK] ignore networkChanged - probe alive, session healthy")
-            return
-        }
-        Log.ssh.info("[NETWORK] Network restored but probe failed, requesting recovery...")
-        await supervisor.requestRecovery(reason: .networkChanged)
     }
 
     // MARK: - Reconnection State Machine
@@ -717,7 +701,7 @@ public actor SSHNetworkService {
     }
 
     /// Legacy entry kept for external callers — now forwards to single `reconnect()`.
-    private func reconnectOpenSSH(config: SSHConnectionConfig) async {
+    private func reconnectOpenSSH(config _: SSHConnectionConfig) async {
         await reconnect()
     }
 
@@ -735,7 +719,7 @@ public actor SSHNetworkService {
         }
     }
 
-    private func handleDisconnect() async {
+    func handleDisconnect() async {
         if let typedFailure = pendingFailure {
             switch typedFailure {
             case .authentication, .hostKey, .cancelled:
@@ -753,13 +737,20 @@ public actor SSHNetworkService {
         await supervisor.requestRecovery(reason: .channelClosed)
     }
 
-    public func lastTypedFailure() -> SSHFailure? { pendingFailure }
-    public func clearTypedFailure() { pendingFailure = nil; lastSuccessfulConnectionAt = nil }
+    public func lastTypedFailure() -> SSHFailure? {
+        pendingFailure
+    }
+
+    public func clearTypedFailure() {
+        pendingFailure = nil; lastSuccessfulConnectionAt = nil
+    }
 
     // MARK: - P0 Wake & Probe Integration
 
     private func configureSupervisorForCurrentConnection() {
         guard let config else { return }
+        pendingWriteFailureValidation = false
+        consecutiveWriteFailedAliveCycles = 0
         let hostLabel = "\(config.username)@\(config.host):\(config.port)"
         let engineLabel = usesOpenSSHTransport ? "openssh" : "citadel"
         let maxAttempts = max(config.maxReconnectAttempts, ReconnectPolicy.default.maxAttempts)
@@ -778,10 +769,10 @@ public actor SSHNetworkService {
                 },
                 onProbedAlive: { [weak self] in
                     guard let self else { return }
-                    // Probe alive -> transport is healthy. Restore the UI if a
-                    // channel-lost write flipped it to the reconnecting spinner.
+                    // Probe alive -> transport is healthy. If a channel write failure is
+                    // pending, validate the channel instead of blindly restoring .connected.
                     Log.ssh.info("[RECOVERY] probe alive keep ready host=\(hostLabel, privacy: .public)")
-                    Task { await self.restoreConnectedAfterProbeAlive() }
+                    Task { await self.handleProbeAlive() }
                     Task { await self.supervisor.reset() }
                 },
                 onReconnecting: { [weak self] attempt, limit in
@@ -798,23 +789,23 @@ public actor SSHNetworkService {
 
     private func startWakeMonitoring() {
         #if os(macOS)
-        wakeMonitorTask?.cancel()
-        wakeMonitorTask = Task { [weak self] in
-            guard let self else { return }
-            for await event in SystemWakeMonitor.shared.events {
-                guard !Task.isCancelled else { break }
-                switch event {
-                case .systemWake(_, let duration):
-                    Log.ssh.info("[WAKE] systemWake -> probe sleepDuration=\(duration ?? -1, privacy: .public)")
-                    await self.supervisor.requestRecovery(reason: .wakeProbeFailed(sleepDuration: duration))
-                case .appDidBecomeActive:
-                    Log.ssh.debug("[WAKE] appDidBecomeActive -> probe")
-                    await self.supervisor.requestRecovery(reason: .wakeProbeFailed(sleepDuration: nil))
-                default:
-                    break
+            wakeMonitorTask?.cancel()
+            wakeMonitorTask = Task { [weak self] in
+                guard let self else { return }
+                for await event in SystemWakeMonitor.shared.events {
+                    guard !Task.isCancelled else { break }
+                    switch event {
+                    case let .systemWake(_, duration):
+                        Log.ssh.info("[WAKE] systemWake -> probe sleepDuration=\(duration ?? -1, privacy: .public)")
+                        await self.supervisor.requestRecovery(reason: .wakeProbeFailed(sleepDuration: duration))
+                    case .appDidBecomeActive:
+                        Log.ssh.debug("[WAKE] appDidBecomeActive -> probe")
+                        await self.supervisor.requestRecovery(reason: .wakeProbeFailed(sleepDuration: nil))
+                    default:
+                        break
+                    }
                 }
             }
-        }
         #endif
     }
 
@@ -826,7 +817,7 @@ public actor SSHNetworkService {
     /// Liveness probe per hard constraint 1: Transport alive != Session/PTY ready.
     /// OpenSSH: check ControlMaster then validate PTY; Citadel: check isConnected then PTY.
     /// Never uses kill(pid,0) or exec true as health (spec).
-    private func probeLiveness() async -> Bool {
+    func probeLiveness() async -> Bool {
         // Skip probe while connecting to avoid wake misjudge
         if case .connecting = connectionState {
             return true
@@ -840,21 +831,25 @@ public actor SSHNetworkService {
             let elapsed = Date().timeIntervalSince(last)
             if elapsed < 10 {
                 return true
-            } else {
-            }
-        } else {
-        }
+            } else {}
+        } else {}
         if usesOpenSSHTransport {
             guard let backend = openSSHBackend else {
                 Log.ssh.warning("[PROBE] openssh no backend -> dead")
                 return false
             }
             let transportAlive = await backend.checkControlMasterLiveness()
-            guard transportAlive else { return false }
+            guard transportAlive else {
+                Log.ssh.warning("[PROBE] openssh transport dead")
+                return false
+            }
             // Transport alive -> validate Session/PTY (hard constraint 1)
             if let pty = activePTYSession {
-                let ptyAlive = !pty.isClosed
-                return ptyAlive
+                let closed = pty.isClosed
+                if closed {
+                    Log.ssh.warning("[PROBE] openssh transport alive but PTY closed")
+                }
+                return !closed
             }
             return true // no PTY yet, transport alive is enough
         } else {
@@ -863,327 +858,26 @@ public actor SSHNetworkService {
                 return false
             }
             let transportAlive = client.isConnected
-            guard transportAlive else { return false }
+            guard transportAlive else {
+                Log.ssh.warning("[PROBE] citadel transport disconnected")
+                return false
+            }
             if let pty = activePTYSession {
-                let ptyAlive = !pty.isClosed
-                return ptyAlive
+                let closed = pty.isClosed
+                if closed {
+                    Log.ssh.warning("[PROBE] citadel transport alive but PTY closed")
+                }
+                return !closed
             }
             return true
         }
-    }
-
-    /// Single reconnect attempt - supervisor handles backoff loop.
-    /// MUST recreate PTY on success (spec: dead -> reconnect -> SSH auth -> open channel -> recreate PTY -> restore size -> reattach -> ready)
-    private func performSingleReconnect() async -> Bool {
-        guard let config else { return false }
-        let newAttemptID = UUID()
-        currentAttemptID = newAttemptID
-        Log.ssh.info("[RECOVERY] new attemptID=\(newAttemptID.uuidString.prefix(8), privacy: .public) host=\(config.host, privacy: .public)")
-        // Fix 2: keep old PTY/client until new is confirmed (make-before-break)
-        let oldPTY = activePTYSession
-        let oldClient = client
-        let oldBackend = openSSHBackend
-        await keepAlive.stop()
-        // Do not clear activePTYSession yet — keep old usable until new is ready
-        // Single attempt (no loop) - supervisor will retry with backoff
-        // 4-stage success: process/TCP -> auth -> PTY -> session
-        do {
-            if usesOpenSSHTransport {
-                try? await Task.sleep(for: .milliseconds(1))
-                // Diag: password fingerprint
-                let cfgDesc: String
-                switch config.authMethod {
-                case .password(let password): cfgDesc = "password(len=\(password.count) fp=\(OpenSSHBackend.passwordFingerprint(password)))"
-                case .privateKey(let privateKeyString): cfgDesc = "privateKey(len=\(privateKeyString.count))"
-                case .certificate(let keyData, let certificateData): cfgDesc = "cert(k=\(keyData.count) c=\(certificateData.count))"
-                case .secureEnclaveKey(let tag): cfgDesc = "sece(\(tag))"
-                }
-                let backend: OpenSSHBackend
-                do {
-                    // Ensure generation matches to avoid stale PTY tail
-                    let genConfig = SSHConnectionConfig(
-                        host: config.host, port: config.port, username: config.username,
-                        authMethod: config.authMethod, jumpHost: config.jumpHost,
-                        maxReconnectAttempts: config.maxReconnectAttempts, baseReconnectDelay: config.baseReconnectDelay,
-                        algorithmRequirements: config.algorithmRequirements,
-                        bypassControlMaster: config.bypassControlMaster,
-                        generation: newAttemptID
-                    )
-                    backend = try OpenSSHBackend(config: genConfig)
-                } catch {
-                    Log.ssh.warning("[RECOVERY_STEP] transportConnected=false reason=\(error.localizedDescription, privacy: .public)")
-                    return false
-                }
-                openSSHBackend = backend
-                usesOpenSSHTransport = true
-                pendingFailure = nil
-                // authenticationSucceeded:  typed auth 300ms  PTY  auth
-                // PTY  onFailure  pendingFailure
-                var authSucceeded = true
-                var ptySession: PTYSession?
-                if let ptyConfig = lastPTYConfig {
-                    do {
-                        let capturedID = newAttemptID
-                        let session = try backend.openPTY(
-                            cols: ptyConfig.cols, rows: ptyConfig.rows, termType: ptyConfig.termType
-                        ) { [weak self] in
-                            guard let self, self.attemptIDBox.withLockedValue { $0 } == capturedID else {
-                                Log.ssh.info("[RECOVERY] discard stale HUP old=\(capturedID.uuidString.prefix(8), privacy: .public)")
-                                return
-                            }
-                            Task { await self.handleDisconnect() }
-                        } onError: { _ in } onFailure: { [weak self] failure in
-                            Task { await self?.handleTypedFailure(failure) }
-                        }
-                        // Extreme: minimal window for delayed Permission denied (50ms total)
-                        for _ in 0..<5 {
-                            if let typedFailure = self.pendingFailure, typedFailure.isAuthentication { break }
-                            if session.isClosed { break }
-                            try? await Task.sleep(for: .milliseconds(10))
-                        }
-                        if let typedFailure = self.pendingFailure, typedFailure.isAuthentication {
-                            Log.ssh.warning("[RECOVERY_STEP] authenticationSucceeded=false reason=\(typedFailure.message.prefix(80), privacy: .public)")
-                            Log.ssh.info("[RECOVERY_GATE] blocked=true reason=authenticationFailed (reconnect)")
-                            await self.suppressRecoveryForAuth()
-                            session.close()
-                            authSucceeded = false
-                        } else if session.isClosed {
-                            Log.ssh.warning("[RECOVERY_STEP] ptyReady=false")
-                            authSucceeded = false
-                        } else {
-                            session.onWriteFailed = { [weak self] in
-                                guard let self, self.attemptIDBox.withLockedValue({ $0 }) == capturedID else { return }
-                                Task { await self.handlePTYWriteFailed() }
-                            }
-                            ptySession = session
-                            activePTYSession = session
-                            pendingPTYSession = session
-                            Log.ssh.info("[RECOVERY_STEP] ptyReady=true outputBound=true (pendingPTY set)")
-                            // Fix 2: close old only after new is confirmed (make-before-break)
-                            oldPTY?.close()
-                            // oldBackend kept as openSSHBackend now, oldClient not used for openssh
-                        }
-                    } catch {
-                        Log.ssh.warning("[RECOVERY] OpenSSH PTY recreate failed: \(error.localizedDescription, privacy: .public)")
-                        Log.ssh.warning("[RECOVERY_STEP] ptyReady=false outputBound=false")
-                        return false
-                    }
-                    if lastPTYConfig != nil {
-                        guard authSucceeded, ptySession != nil else {
-                            Log.ssh.warning("[RECOVERY_STEP] outputBound=false authSucceeded=\(authSucceeded, privacy: .public)")
-                            return false
-                        }
-                    } else {
-                        guard authSucceeded else {
-                            Log.ssh.warning("[RECOVERY_STEP] authenticationSucceeded=false")
-                            return false
-                        }
-                    }
-                    Log.ssh.info("[RECOVERY_STEP] transportReady=true authenticationSucceeded=\(authSucceeded, privacy: .public)")
-                } else {
-                    Log.ssh.info("[RECOVERY_STEP] transportReady=true (no PTY)")
-                }
-                connectionState = .connected
-                stateContinuation.yield(.connected)
-                lastSuccessfulConnectionAt = Date()
-                Log.ssh.info("[RECOVERY] OpenSSH reconnect success (transport/pty/output all ready)")
-                await keepAlive.stop()
-                startNetworkMonitor()
-                return true
-            } else {
-                // transportConnected + authenticationSucceeded via establishConnection
-                try await withThrowingTimeout(of: .seconds(Self.connectionTimeoutSeconds)) {
-                    try await self.establishConnection(config: config)
-                }
-                if let client {
-                    let capturedKeepAliveID = newAttemptID
-                    await keepAlive.settimeoutHandler { [weak self] in
-                        guard let self, self.attemptIDBox.withLockedValue { $0 } == capturedKeepAliveID else {
-                            Log.ssh.info("[RECOVERY] discard stale keepAlive old=\(capturedKeepAliveID.uuidString.prefix(8), privacy: .public)")
-                            return
-                        }
-                        Task { await self.supervisor.requestRecovery(reason: .keepAliveTimeout) }
-                    }
-                    await keepAlive.start(client: client)
-                }
-                // ptyReady + sessionReady
-                if let ptyConfig = lastPTYConfig, let client {
-                    let capturedID = newAttemptID
-                    let session = PTYSession()
-                    session.onWriteFailed = { [weak self] in
-                        guard let self, self.attemptIDBox.withLockedValue { $0 } == capturedID else { return }
-                        Task { await self.handlePTYWriteFailed() }
-                    }
-                    session.start(client: client, cols: ptyConfig.cols, rows: ptyConfig.rows, termType: ptyConfig.termType)
-                    let ptyReady = !session.isClosed
-                    guard ptyReady else {
-                        Log.ssh.warning("[RECOVERY_STEP] ptyReady=false")
-                        return false
-                    }
-                    activePTYSession = session
-                    pendingPTYSession = session
-                    Log.ssh.info("[RECOVERY_STEP] ptyReady=true outputBound=true (pendingPTY set)")
-                    // Fix 2: close old after new is ready
-                    oldPTY?.close()
-                    try? await oldClient?.close()
-                } else {
-                    Log.ssh.info("[RECOVERY_STEP] transportReady=true (no PTY)")
-                }
-                Log.ssh.info("[RECOVERY_STEP] transportReady=true ptyReady=\(self.lastPTYConfig != nil ? "true" : "no PTY", privacy: .public)")
-                startNetworkMonitor()
-                return true
-            }
-        } catch is CancellationError {
-            return false
-        } catch {
-            Log.ssh.warning("[RECOVERY] single reconnect failed: \(error.localizedDescription, privacy: .public)")
-            return false
-        }
-    }
-
-    #if os(macOS)
-        /// Start an OpenSSH-backed port forward for this connected target.
-        func startPortForward(
-            _ forward: SSHPortForwardConfiguration,
-            onExit: @escaping @Sendable () -> Void
-        ) async throws -> OpenSSHForwardHandle {
-            guard usesOpenSSHTransport, let openSSHBackend else {
-                throw SSHServiceError.connectionFailed(
-                    "OpenSSH port forwarding requires an OpenSSH-backed connection."
-                )
-            }
-            return try openSSHBackend.startPortForward(config: forward, onExit: onExit)
-        }
-    #endif
-
-    // MARK: - Host Key Verification (TOFU)
-
-    private func verifyHostKey(
-        host: String,
-        port: UInt16,
-        fingerprint: SSHHostFingerprint?,
-        store: any SSHHostKeyStore
-    ) async throws {
-        guard let fingerprint else {
-            Log.ssh.error("No fingerprint computed for \(host):\(port), refusing connection")
-            throw SSHServiceError.hostKeyMismatch(expected: "unknown", received: "none")
-        }
-
-        Log.ssh.info("Fingerprint for \(host):\(port): \(fingerprint.hash)")
-
-        if let known = await store.knownFingerprint(for: host, port: port) {
-            Log.ssh.info("Known fingerprint: \(known.hash)")
-            guard known.hash == fingerprint.hash else {
-                throw SSHServiceError.hostKeyMismatch(
-                    expected: known.hash,
-                    received: fingerprint.hash
-                )
-            }
-        } else {
-            Log.ssh.info("First connection, saving fingerprint")
-            await store.saveFingerprint(fingerprint, for: host, port: port)
-        }
-    }
-
-    // MARK: - Auth Mapping
-
-    private func mapAuthMethod(
-        _ method: SSHAuthMethod,
-        username: String
-    ) throws -> SSHAuthenticationMethod {
-        switch method {
-        case let .password(password):
-            return .passwordBased(username: username, password: password)
-
-        case let .privateKey(pem):
-            let raw = try decodePEM(pem)
-
-            if let edKey = try? Curve25519.Signing.PrivateKey(rawRepresentation: raw) {
-                return .ed25519(username: username, privateKey: edKey)
-            }
-
-            throw SSHServiceError.connectionFailed(
-                "Unsupported key type. Only Ed25519 private keys are supported. "
-                    + "Detected key is not Ed25519 (raw \(raw.count) bytes)."
-            )
-
-        case let .certificate(privateKeyPEM, _):
-            let raw = try decodePEM(privateKeyPEM)
-
-            if let edKey = try? Curve25519.Signing.PrivateKey(rawRepresentation: raw) {
-                Log.ssh.info("Using certificate authentication for \(username)")
-                return .ed25519(username: username, privateKey: edKey)
-            }
-
-            throw SSHServiceError.connectionFailed(
-                "Certificate authentication requires an Ed25519 private key."
-            )
-
-        case let .secureEnclaveKey(keyTag):
-            // Secure Enclave authentication: use custom NIOSSH key provider
-            Log.ssh.info("Using Secure Enclave key for \(username)")
-            let secureEnclaveKey = try SecureEnclaveKeyManager.getPrivateKey(tag: keyTag)
-            return .custom(SecureEnclaveAuthDelegate(
-                username: username,
-                privateKey: secureEnclaveKey
-            ))
-        }
-    }
-
-    #if os(macOS)
-        private func shouldUseOpenSSH(_ method: SSHAuthMethod) -> Bool {
-            if let forced = vnextForcedBackend {
-                return forced == .compatibility
-            }
-            switch method {
-            case .secureEnclaveKey:
-                return false
-            case .password, .privateKey, .certificate:
-                return true
-            }
-        }
-
-        /// VNext: force next connect to use a specific backend (T2.2).
-        public func setVNextPreferredBackend(_ backend: SSHBackendType?) {
-            vnextForcedBackend = backend
-        }
-
-        /// VNext T5 — vend a unified session for SFTP multiplexing on the same connection.
-        public func makeVNextSession(endpoint: SSHEndpoint) -> (any SSHSession)? {
-            #if os(macOS)
-            if usesOpenSSHTransport, let backend = openSSHBackend {
-                return CompatibilitySSHSession(backend: backend, endpoint: endpoint)
-            }
-            #endif
-            if let activeClient = client {
-                if let cfg = config {
-                    return NativeSSHSession(client: activeClient, endpoint: endpoint, config: cfg, hostKeyStore: hostKeyStore)
-                }
-                return NativeSSHSession(client: activeClient, endpoint: endpoint)
-            }
-            return nil
-        }
-    #endif
-
-    private nonisolated func decodePEM(_ pem: String) throws -> Data {
-        let base64 = pem
-            .replacingOccurrences(of: "\r\n", with: "\n")
-            .split(separator: "\n")
-            .map(String.init)
-            .filter { !$0.hasPrefix("-----") && !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-            .joined()
-
-        guard let data = Data(base64Encoded: base64) else {
-            throw SSHServiceError.connectionFailed("Invalid base64 in PEM key")
-        }
-        return data
     }
 }
 
 // MARK: - Timeout Helper
 
 /// A simple timeout wrapper for async operations.
-private func withThrowingTimeout<T: Sendable>(
+func withThrowingTimeout<T: Sendable>(
     of duration: Duration,
     operation: @Sendable @escaping () async throws -> T
 ) async throws -> T {
@@ -1203,6 +897,8 @@ private func withThrowingTimeout<T: Sendable>(
     }
 }
 
-private struct SSHTimeoutError: Error, LocalizedError {
-    var errorDescription: String? { "Operation timed out" }
+struct SSHTimeoutError: Error, LocalizedError {
+    var errorDescription: String? {
+        "Operation timed out"
+    }
 }

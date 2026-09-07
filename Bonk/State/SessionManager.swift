@@ -35,22 +35,30 @@ final class SessionManager {
     /// Guard against the auth-failure dialog loop. One tab goes through at most:
     /// dialog → reconnect → (fail) → cleanup+reconnect → (fail) → STOP. The
     /// user must start a fresh connect to try again.
-    private enum AuthRetryState { case idle, dialogShown, cleanupDone }
+    enum AuthRetryState { case idle, dialogShown, cleanupDone }
     // Per-tab isolation — fix global singleton causing second tab Sheet suppressed
     private var authRetryStates: [UUID: AuthRetryState] = [:]
     private var showingAuthDialogs: Set<UUID> = []
     private var connectTasks: [UUID: Task<Void, Never>] = [:]
     var transientAuthResults: [UUID: AuthRetryResult] = [:]
-    private func retryState(for tabID: UUID) -> AuthRetryState { authRetryStates[tabID] ?? .idle }
-    private func setRetryState(_ state: AuthRetryState, for tabID: UUID) {
+    func retryState(for tabID: UUID) -> AuthRetryState {
+        authRetryStates[tabID] ?? .idle
+    }
+
+    func setRetryState(_ state: AuthRetryState, for tabID: UUID) {
         if case .idle = state { authRetryStates.removeValue(forKey: tabID) } else { authRetryStates[tabID] = state }
     }
-    private func isShowingDialog(for tabID: UUID) -> Bool { showingAuthDialogs.contains(tabID) }
-    private func setShowingDialog(_ showing: Bool, for tabID: UUID) {
+
+    func isShowingDialog(for tabID: UUID) -> Bool {
+        showingAuthDialogs.contains(tabID)
+    }
+
+    func setShowingDialog(_ showing: Bool, for tabID: UUID) {
         if showing { showingAuthDialogs.insert(tabID) } else { showingAuthDialogs.remove(tabID) }
     }
 
     // MARK: - Auth Retry Sheet (P1 bug 2/3/4)
+
     struct AuthRetryRequest: Identifiable, @unchecked Sendable {
         let id = UUID()
         let tab: TerminalTab
@@ -58,7 +66,8 @@ final class SessionManager {
         let rawError: String
         let lastAttemptPassword: String?
     }
-    struct AuthRetryResult: Sendable {
+
+    struct AuthRetryResult {
         let password: String
         let privateKeyPEM: String
         let certificatePEM: String
@@ -66,14 +75,15 @@ final class SessionManager {
         let credentialID: PersistentIdentifier?
         let authType: AuthType
     }
+
     var authRetryRequest: AuthRetryRequest?
     var hostToEdit: HostItem?
-    private var authRetryContinuation: CheckedContinuation<AuthRetryResult?, Never>?
+    var authRetryContinuation: CheckedContinuation<AuthRetryResult?, Never>?
     /// Last retry password per tab for sheet prefill
-    private var lastRetryPassword: [UUID: String] = [:]
+    var lastRetryPassword: [UUID: String] = [:]
 
-    // VNext — Hybrid SSH coordinator (T1.4+). Used for routing decision logging in T2.1,
-    // full native-first wiring lands in T2.2.
+    /// VNext — Hybrid SSH coordinator (T1.4+). Used for routing decision logging in T2.1,
+    /// full native-first wiring lands in T2.2.
     let vnextCoordinator = SSHSessionCoordinator()
 
     var vnextProfileStore: SSHProfileStore? {
@@ -163,8 +173,7 @@ final class SessionManager {
     func moveTab(_ tabID: UUID, relativeTo targetID: UUID) {
         guard let sourceIndex = tabs.firstIndex(where: { $0.id == tabID }),
               let targetIndex = tabs.firstIndex(where: { $0.id == targetID }),
-              sourceIndex != targetIndex
-        else { return }
+              sourceIndex != targetIndex else { return }
 
         let tab = tabs.remove(at: sourceIndex)
         guard let newTargetIndex = tabs.firstIndex(where: { $0.id == targetID }) else {
@@ -233,7 +242,7 @@ final class SessionManager {
         _ tab: TerminalTab,
         passwordOverride: String? = nil,
         ephemeralResult: AuthRetryResult? = nil,
-        resetAuthRetry: Bool = true
+        resetAuthRetry _: Bool = true
     ) async {
         Log.session.info("[CONNECT] Starting connectTab for \(tab.hostItem.host):\(tab.hostItem.port)")
 
@@ -247,80 +256,33 @@ final class SessionManager {
 
         let session = sessionStore.session(for: tab)
         tab.session = session
-        
+
         // New generation for full-chain isolation
         let generation = UUID()
         session.generation = generation
         session.cancelAuthFailureWaiter()
-        
+
         // Disconnect old service to avoid concurrent ssh/askpass
         if let oldService = session.sshService {
             await oldService.disconnect()
         }
-        
+
         session.connectionState = .connecting
         session.phase = .resolving
         session.errorMessage = nil
         session.failureReason = nil
 
-        // Merge transient retry result; keep for cleaning retry, clear on success (300ms)
-        let effectiveEphemeral = ephemeralResult ?? transientAuthResults[tab.id]
-        if let effectiveResult = effectiveEphemeral { transientAuthResults[tab.id] = effectiveResult }
-        guard let config = preparedConfig(for: tab, session: session, passwordOverride: passwordOverride, ephemeralResult: effectiveEphemeral) else {
-            setPhase(session, to: .failed("resolve config"), host: tab.hostItem.host, engine: "Resolver", reason: "config")
-            return
-        }
-        // Inject generation for full-chain propagation
-        var configWithGen = config
-        configWithGen = SSHConnectionConfig(
-            host: config.host,
-            port: config.port,
-            username: config.username,
-            authMethod: config.authMethod,
-            jumpHost: config.jumpHost,
-            maxReconnectAttempts: config.maxReconnectAttempts,
-            baseReconnectDelay: config.baseReconnectDelay,
-            algorithmRequirements: config.algorithmRequirements,
-            bypassControlMaster: config.bypassControlMaster,
-            generation: generation
-        )
-        setPhase(session, to: .connectingTransport, host: configWithGen.host, engine: "Resolver", reason: "VNext routing")
-        // Lifecycle consumes config with ephemeralResult to avoid HostItem overwrite
-        let lifecycle = SSHSessionLifecycle(networkService: SSHNetworkService(hostKeyStore: hostKeyStore), hostKeyStore: hostKeyStore)
-        guard let resolved = await lifecycle.resolve(config: configWithGen, forcedCompatibility: tab.hostItem.forceCompatibility == true) else {
-            setPhase(session, to: .failed("resolve"), host: tab.hostItem.host, engine: "Lifecycle", reason: "resolve")
-            return
-        }
-        let vnextReq = resolved.requirements
-        let vnextCached: SSHSessionCoordinator.CachedProfile? = nil
-        let vnextDecision = resolved.decision
-        logVNextDecision(vnextDecision, config: config, requirements: vnextReq)
-        var service = resolved.service
-        var effectiveConfig = resolved.effectiveConfig
-        // Ensure generation forwarded to effectiveConfig
-        if effectiveConfig.generation == nil {
-            effectiveConfig = SSHConnectionConfig(
-                host: effectiveConfig.host,
-                port: effectiveConfig.port,
-                username: effectiveConfig.username,
-                authMethod: effectiveConfig.authMethod,
-                jumpHost: effectiveConfig.jumpHost,
-                maxReconnectAttempts: effectiveConfig.maxReconnectAttempts,
-                baseReconnectDelay: effectiveConfig.baseReconnectDelay,
-                algorithmRequirements: effectiveConfig.algorithmRequirements,
-                bypassControlMaster: effectiveConfig.bypassControlMaster,
-                generation: generation
-            )
-        }
-        if let effectiveResult = effectiveEphemeral {
-            let src = ephemeralResult == nil ? "transient" : "ephemeral"
-            let passwordLength = effectiveResult.password.count
-            let fingerprint = passwordLength>0 ? OpenSSHBackend.passwordFingerprint(effectiveResult.password) : "-"
-            Log.session.info("[AUTH_RETRY] source=\(src, privacy: .public) passwordLength=\(passwordLength) passwordFingerprint=\(fingerprint, privacy: .public) authType=\(effectiveResult.authType.rawValue, privacy: .public) effectiveHost=\(effectiveConfig.host, privacy: .public)")
-        }
-        if case .compatibility = vnextDecision, let algos = vnextCached?.algorithms, !algos.isEmpty {
-            Log.session.info("[VNext] Using cached compat algorithms: kex=\(algos.kex)")
-        }
+        guard let setup = await resolveConnectionSetup(
+            for: tab, session: session, generation: generation,
+            passwordOverride: passwordOverride, ephemeralResult: ephemeralResult
+        ) else { return }
+        var service = setup.service
+        var effectiveConfig = setup.effectiveConfig
+        let config = setup.config
+        let configWithGen = setup.configWithGen
+        let vnextReq = setup.requirements
+        let vnextDecision = setup.decision
+        let effectiveEphemeral = setup.effectiveEphemeral
         session.sshService = service
         observeStateChanges(for: tab, session: session, service: service)
         await attachManualPasswordHandler(to: service, tab: tab)
@@ -333,13 +295,11 @@ final class SessionManager {
         }
 
         var fallbackInfo: FallbackInfo?
-        let transportEngine: String = {
-            switch vnextDecision {
-            case .native: return "Native"
-            case .compatibility: return "Compatibility"
-            case .nativeWithCompatibilityFallback: return "Native"
-            }
-        }()
+        let transportEngine = switch vnextDecision {
+        case .native: "Native"
+        case .compatibility: "Compatibility"
+        case .nativeWithCompatibilityFallback: "Native"
+        }
         setPhase(session, to: .negotiatingSSH, host: configWithGen.host, engine: transportEngine, reason: "transport connect")
         do {
             do {
@@ -374,7 +334,7 @@ final class SessionManager {
             if let ctx = modelContext, let prefs = try? ctx.fetch(FetchDescriptor<UserPreferences>()).first, prefs.autoRecord == true {
                 let pid = tab.activePaneID ?? tab.layout.activePaneID
                 Task {
-                    if !(await SessionRecordingService.shared.isRecording(paneID: pid)) {
+                    if await !(SessionRecordingService.shared.isRecording(paneID: pid)) {
                         _ = try? await SessionRecordingService.shared.start(host: tab.hostItem.name, tabID: tab.id, paneID: pid)
                         tab.layout.findPane(id: pid)?.ptySession?.recordingPaneID = pid
                     }
@@ -456,7 +416,7 @@ final class SessionManager {
             switch newPhase {
             case .idle, .failed: session.connectionState = .disconnected
             case .ready: session.connectionState = .connected
-            case .reconnecting(let attempt, let maxAttempts): session.connectionState = .reconnecting(attempt: attempt, maxAttempts: maxAttempts)
+            case let .reconnecting(attempt, maxAttempts): session.connectionState = .reconnecting(attempt: attempt, maxAttempts: maxAttempts)
             default: session.connectionState = .connecting
             }
             Log.session.info("[SSH_STATE] host:\(host) engine:\(engine) old:\(old) new:\(String(describing: newPhase)) reason:\(reason)")
@@ -466,7 +426,7 @@ final class SessionManager {
                 switch newPhase {
                 case .idle, .failed: session.connectionState = .disconnected
                 case .ready: session.connectionState = .connected
-                case .reconnecting(let attempt, let maxAttempts): session.connectionState = .reconnecting(attempt: attempt, maxAttempts: maxAttempts)
+                case let .reconnecting(attempt, maxAttempts): session.connectionState = .reconnecting(attempt: attempt, maxAttempts: maxAttempts)
                 default: session.connectionState = .connecting
                 }
                 Log.session.info("[SSH_STATE] host:\(host) engine:\(engine) old:\(old) new:\(String(describing: newPhase)) reason:\(reason)")
@@ -494,7 +454,8 @@ final class SessionManager {
         let msg = (error.localizedDescription + " " + String(describing: error)).lowercased()
         // If not a negotiation failure, no algorithm hint
         guard msg.contains("keyexchangenegotiationfailure") || msg.contains("no matching")
-            || msg.contains("invalidhostkeyforkeyexchange") || msg.contains("unsupportedversion") else {
+            || msg.contains("invalidhostkeyforkeyexchange") || msg.contains("unsupportedversion") else
+        {
             return nil
         }
         var kex: [String] = []
@@ -554,7 +515,6 @@ final class SessionManager {
         }
         tab.session?.disconnect()
         tab.session = nil
-
     }
 
     func reconnectTab(_ id: UUID) async {
@@ -589,96 +549,7 @@ final class SessionManager {
         }
     }
 
-    // MARK: - Input
-
-    func resizePTY(cols: Int, rows: Int, tabID: UUID, paneID: UUID? = nil) async throws {
-        guard let tab = tabs.first(where: { $0.id == tabID }),
-              let targetPaneID = paneID ?? tab.activePaneID else { return }
-        guard let pane = tab.layout.findPane(id: targetPaneID),
-              let pty = pane.ptySession else { return }
-        try await pty.resize(cols: cols, rows: rows)
-    }
-
-    func updateTabTitle(_ title: String, tabID: UUID) {
-        guard let tab = tabs.first(where: { $0.id == tabID }) else { return }
-        if let cwd = parseCWD(from: title, username: tab.hostItem.username) {
-            tab.currentDirectory = cwd
-        }
-    }
-
-    func sendInput(_ bytes: ArraySlice<UInt8>, to tabID: UUID, paneID: UUID? = nil) async throws {
-        guard let tab = tabs.first(where: { $0.id == tabID }),
-              let targetPaneID = paneID ?? tab.activePaneID else { return }
-        // Only block input during authenticating to avoid command typed as password
-        // waitingPTY/openingChannel/openingPTY should allow input (fixes terminal freeze after 2.7)
-        if let sessionState = tab.session, sessionState.phase == .authenticating {
-            return
-        }
-
-        // Use inputHandler to record command history and broadcast
-        try await inputHandler.sendInput(
-            bytes,
-            to: tab,
-            paneID: targetPaneID,
-            broadcastManager: broadcastManager,
-            allTabs: tabs
-        )
-    }
-
-    // MARK: - Zmodem
-
-    /// Start Zmodem file send.
-    func startZmodemSend(tabID: UUID, paneID: UUID, files: [URL]) {
-        guard let tab = tabs.first(where: { $0.id == tabID }),
-              let pane = tab.layout.findPane(id: paneID),
-              let pty = pane.ptySession else { return }
-
-        if pty.zmodemHandler == nil {
-            pty.setupZmodem()
-        }
-        pty.startZmodemSend(files: files)
-    }
-
-    /// Start Zmodem file receive.
-    func startZmodemReceive(tabID: UUID, paneID: UUID) {
-        guard let tab = tabs.first(where: { $0.id == tabID }),
-              let pane = tab.layout.findPane(id: paneID),
-              let pty = pane.ptySession else { return }
-
-        if pty.zmodemHandler == nil {
-            pty.setupZmodem()
-        }
-        pty.startZmodemReceive()
-    }
-
-    /// Convenience: send text to the active pane (auto-appends Enter).
-    func sendTextToActiveTab(_ text: String) {
-        guard let tab = activeTab, let paneID = tab.activePaneID else { return }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        Task {
-            let cmdBytes = Array(trimmed.utf8)[...]
-            try? await sendInput(cmdBytes, to: tab.id, paneID: paneID)
-            try? await Task.sleep(for: .milliseconds(15))
-            let enterBytes: ArraySlice<UInt8> = [13]
-            try? await sendInput(enterBytes, to: tab.id, paneID: paneID)
-        }
-    }
-
-    /// Toggle local broadcast for a tab.
-    func toggleTabBroadcast(_ tabID: UUID) {
-        guard let tab = tabs.first(where: { $0.id == tabID }) else { return }
-        tab.isBroadcastEnabled.toggle()
-    }
-
-    // MARK: - Broadcast Sync
-
-    func syncBroadcastTargets() {
-        let allPaneIDs = tabs.flatMap(\.paneIDs)
-        broadcastManager?.allPaneIDs = allPaneIDs
-        let validIDs = Set(allPaneIDs)
-        broadcastManager?.targetPaneIDs = broadcastManager?.targetPaneIDs.filter { validIDs.contains($0) } ?? []
-    }
+    // MARK: - Input / Zmodem / Broadcast (see SessionManager+Input.swift)
 
     // MARK: - Private
 
@@ -690,9 +561,9 @@ final class SessionManager {
             return nil
         }
         switch SSHConnectionConfigBuilder.makeConfig(for: hostItem) {
-        case .success(let config):
+        case let .success(config):
             return config
-        case .failure(let message):
+        case let .failure(message):
             session.connectionState = .disconnected
             session.errorMessage = message.localizedDescription
             return nil
@@ -718,120 +589,7 @@ final class SessionManager {
     /// Show a modal dialog asking for the password of `username@host`
     /// (username preserved, only the password is entered). Returns nil when
     /// the user cancels.
-    private func promptForPassword(username: String, host: String) async -> String? {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = I18n.shared.t(.authFailedTitle)
-        let displayUser = username.isEmpty ? "?" : username
-        alert.informativeText = "\(displayUser)@\(host)\n\(I18n.shared.t(.authFailedMessage))"
-
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 26))
-        let field = AutoEnglishSecureTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
-        field.placeholderString = I18n.shared.t(.password)
-        container.addSubview(field)
-        alert.accessoryView = container
-
-        alert.addButton(withTitle: I18n.shared.t(.retry))
-        alert.addButton(withTitle: I18n.shared.t(.cancel))
-        alert.window.initialFirstResponder = field
-
-        let response = alert.runModal()
-        guard response == .alertFirstButtonReturn else { return nil }
-        let value = field.stringValue
-        return value.isEmpty ? nil : value
-    }
-
-    /// New auth retry via sheet - shows AuthRetrySheet with full auth methods and raw error detail.
-    func requestAuthRetry(for tab: TerminalTab, rawError: String) async -> AuthRetryResult? {
-        let last = lastRetryPassword[tab.id]
-        return await withCheckedContinuation { continuation in
-            authRetryContinuation = continuation
-            authRetryRequest = AuthRetryRequest(tab: tab, host: tab.hostItem, rawError: rawError, lastAttemptPassword: last)
-        }
-    }
-
-    func completeAuthRetry(with result: AuthRetryResult?) {
-        if let authResult = result, !authResult.password.isEmpty, let tabID = authRetryRequest?.tab.id {
-            lastRetryPassword[tabID] = authResult.password
-        } else if result == nil, let tabID = authRetryRequest?.tab.id {
-            // Keep last input for next prefill
-        }
-        authRetryContinuation?.resume(returning: result)
-        authRetryContinuation = nil
-        authRetryRequest = nil
-    }
-
-    func completeAuthRetry(with host: HostItem) {
-        let result = AuthRetryResult(password: host.loadPassword() ?? "", privateKeyPEM: host.loadPrivateKey() ?? "", certificatePEM: host.loadCertificate() ?? "", secureEnclaveTag: host.loadSecureEnclaveKeyTag(), credentialID: host.credentialRef?.persistentModelID, authType: host.authType)
-        completeAuthRetry(with: result)
-    }
-
-    func cancelAuthRetry() {
-        authRetryContinuation?.resume(returning: nil)
-        authRetryContinuation = nil
-        authRetryRequest = nil
-    }
-
-    /// Typed auth failure from reconnect PTY (not via setupPTYSession) must show sheet
-    /// Citadel throws sync, OpenSSH tails async; Prompts=1 fails fast to sheet
-    private func handleServiceAuthFailure(_ failure: SSHFailure, for tab: TerminalTab) async {
-        guard tabs.contains(where: { $0.id == tab.id }), let session = tab.session else { return }
-        guard case .authentication(let authFailure) = failure else { return }
-        let display = SSHErrorMessageParser.explain(authFailure.message, host: tab.hostItem.host, jumpHost: tab.hostItem.jumpHostRef?.host) ?? authFailure.message
-        // Single sheet path
-        if case .authentication = session.failureReason, session.phase == .failed(display), isShowingDialog(for: tab.id) { return }
-        session.failureReason = failure
-        setPhase(session, to: .failed(display), host: tab.hostItem.host, engine: "OpenSSH", reason: "authFailed")
-        session.signalAuthFailure()
-        session.errorMessage = display
-        Log.session.error("[SSH_FAILURE] type=authentication backend=openssh (service) msg=\(display.prefix(120), privacy: .public)")
-        Log.session.info("[RECOVERY_GATE] blocked=true reason=authenticationFailed (service)")
-        guard !isShowingDialog(for: tab.id) else { return }
-        setShowingDialog(true, for: tab.id)
-        defer { setShowingDialog(false, for: tab.id) }
-        if retryState(for: tab.id) == .dialogShown {
-            Log.session.error("[AUTH_RETRY] service reconnect failed; cleaning")
-            OpenSSHBackend.cleanupOrphanedMuxes()
-            setRetryState(.cleanupDone, for: tab.id)
-            guard tabs.contains(where: { $0.id == tab.id }) else { return }
-            sessionStore.markConnected(tab.id)
-            let reuse = transientAuthResults[tab.id]
-            if let reuseResult = reuse, reuseResult.authType == .password, !reuseResult.password.isEmpty {
-                await connectTab(tab, passwordOverride: reuseResult.password, ephemeralResult: reuseResult, resetAuthRetry: false)
-            } else {
-                await connectTab(tab, ephemeralResult: reuse, resetAuthRetry: false)
-            }
-            if case .failed = tab.session?.phase {
-                // Keep cleanupDone for next failure
-            } else {
-                setRetryState(.idle, for: tab.id)
-            }
-            return
-        }
-        if retryState(for: tab.id) == .cleanupDone {
-            Log.session.error("[AUTH_RETRY] service second failure; re-show sheet")
-            setRetryState(.idle, for: tab.id)
-        }
-        setRetryState(.dialogShown, for: tab.id)
-        guard let result = await requestAuthRetry(for: tab, rawError: authFailure.message) else {
-            setRetryState(.idle, for: tab.id); return
-        }
-        let passwordLength = result.password.count
-        let fingerprint = passwordLength>0 ? OpenSSHBackend.passwordFingerprint(result.password) : "-"
-        Log.session.info("[AUTH_RETRY] source=ephemeral (service) passwordLength=\(passwordLength) passwordFingerprint=\(fingerprint, privacy: .public) authType=\(result.authType.rawValue, privacy: .public)")
-        transientAuthResults[tab.id] = result
-        // Isolated retry via ControlMaster bypass
-        if result.authType == .password, !result.password.isEmpty {
-            await connectTab(tab, passwordOverride: result.password, ephemeralResult: result, resetAuthRetry: false)
-        } else {
-            await connectTab(tab, ephemeralResult: result, resetAuthRetry: false)
-        }
-        if case .failed = tab.session?.phase {
-            transientAuthResults[tab.id] = nil
-        } else {
-            setRetryState(.idle, for: tab.id)
-        }
-    }
+    // MARK: - Auth Retry (see SessionManager+AuthRetry.swift)
 
     func setupPTYSession(
         for tab: TerminalTab,
@@ -864,7 +622,7 @@ final class SessionManager {
                 Task { @MainActor in
                     guard let self, let tab else { return }
                     switch failure {
-                    case .authentication(let authFailure):
+                    case let .authentication(authFailure):
                         await service.suppressRecoveryForAuth()
                         session.failureReason = failure
                         let display = SSHErrorMessageParser.explain(authFailure.message, host: tab.hostItem.host, jumpHost: tab.hostItem.jumpHostRef?.host) ?? authFailure.message
@@ -873,8 +631,7 @@ final class SessionManager {
                         session.errorMessage = display
                         Log.session.error("[SSH_FAILURE] type=authentication backend=openssh msg=\(display.prefix(120), privacy: .public)")
                         Log.session.debug("[RECOVERY_GATE] blocked authFailed (dedup sheet via handleServiceAuthFailure)")
-                        
-                    case .hostKey(let msg):
+                    case let .hostKey(msg):
                         await service.suppressRecoveryForAuth()
                         session.failureReason = failure
                         self.setPhase(session, to: .failed(msg), host: tab.hostItem.host, engine: "OpenSSH", reason: "hostKey")
@@ -883,10 +640,10 @@ final class SessionManager {
                     case .cancelled:
                         session.failureReason = .cancelled
                         Log.session.info("[RECOVERY_GATE] blocked=true reason=cancelled")
-                    case .transport(let transportFailure):
+                    case let .transport(transportFailure):
                         session.failureReason = failure
                         Log.session.info("[RECOVERY_GATE] blocked=false reason=transportFailed detail=\(transportFailure.message.prefix(80), privacy: .public)")
-                    case .unknown(let message):
+                    case let .unknown(message):
                         session.failureReason = failure
                         Log.session.warning("[SSH_FAILURE] type=unknown msg=\(message.prefix(80), privacy: .public)")
                     }
@@ -941,7 +698,7 @@ final class SessionManager {
     }
 
     /// Attach per-session observers to a PTY session (used after reconnect).
-    private func attachPTYSessionObservers(_ ptySession: PTYSession, to tab: TerminalTab) {
+    func attachPTYSessionObservers(_ ptySession: PTYSession, to tab: TerminalTab) {
         ptySession.osc7Detector.onCWDChange = { [weak tab] cwd in
             Task { @MainActor in
                 tab?.currentDirectory = cwd
@@ -951,7 +708,7 @@ final class SessionManager {
 
     /// Sync the real terminal dimensions to the PTY session after the view has
     /// laid out, overriding the 80x24 default.
-    private func syncPTYSize(for paneID: UUID?, ptySession: PTYSession) {
+    func syncPTYSize(for paneID: UUID?, ptySession: PTYSession) {
         guard let paneID else { return }
         Task { @MainActor [weak self, weak ptySession] in
             // Wait for one RunLoop cycle to ensure SwiftTerm has calculated real dimensions
@@ -971,93 +728,7 @@ final class SessionManager {
         }
     }
 
-    private func parseCWD(from title: String, username: String) -> String? {
-        // Pattern: "user@host:/absolute/path" or "user@host:~/path"
-        if let colonRange = title.range(of: ": ") {
-            let afterColon = String(title[colonRange.upperBound...])
-            let path = afterColon.components(separatedBy: " ").first ?? afterColon
-            if path.hasPrefix("/") { return path }
-            // Handle ~ paths — expand to the actual user's home directory
-            if path.hasPrefix("~") {
-                let home = "/home/\(username)"
-                let relativePath = path.dropFirst()
-                if relativePath.isEmpty { return home }
-                if relativePath.hasPrefix("/") {
-                    return home + String(relativePath)
-                }
-                return home + "/" + String(relativePath)
-            }
-        }
-        // Pattern: "/absolute/path" as title
-        if title.hasPrefix("/") {
-            return title.components(separatedBy: " ").first ?? title
-        }
-        return nil
-    }
-
-    func observeStateChanges(for tab: TerminalTab, session: TerminalSession, service: SSHNetworkService) {
-        session.stateObservationTask?.cancel()
-        let token = UUID()
-        session.stateObserverToken = token
-        let capturedGen = session.generation
-        session.stateObservationTask = Task { [weak self, weak tab, weak session] in
-            guard let self, let tab, let session else { return }
-            for await state in service.stateStream {
-                guard !Task.isCancelled else { break }
-                guard session.stateObserverToken == token else { return }
-                guard tab.session === session else { break }
-                // Generation isolation: discard stale state
-                guard session.generation == capturedGen else {
-                    Log.session.info("[OBSERVER] discard stale state gen=\(capturedGen.uuidString.prefix(8)) != current=\(session.generation.uuidString.prefix(8))")
-                    return
-                }
-
-                switch state {
-                case .connected:
-                    if let newPTY = await service.consumePendingPTY() {
-                        if let firstPane = tab.layout.root.paneState {
-                            let oldPTY = firstPane.ptySession
-                            newPTY.teamSessionID = TeamSessionID(tabID: tab.id, paneID: firstPane.id)
-                            newPTY.hostItem = tab.hostItem
-                            // Fix 2: ensure output binding before closing old (make-before-break)
-                            firstPane.ptySession = newPTY
-                            session.ptySession = newPTY
-                            TerminalViewCache.shared.rebindOutputStream(for: tab.id, to: newPTY)
-                            TerminalViewCache.shared.rebindOutputStream(for: firstPane.id, to: newPTY)
-                            // Fix 1: log stages
-                            Log.session.info("[RECOVERY_STEP] ptyReady=true outputBound=true pane=\(firstPane.id.uuidString.prefix(8), privacy: .public)")
-                            syncPTYSize(for: firstPane.id, ptySession: newPTY)
-                            // Close old only after new is bound
-                            oldPTY?.close()
-                        }
-                        attachPTYSessionObservers(newPTY, to: tab)
-                        session.connectedAt = Date()
-                        session.errorMessage = nil
-                        session.terminalState = .ready
-                        self.setPhase(session, to: .ready, host: tab.hostItem.host, engine: "Observer", reason: "reconnect PTY")
-                        NotificationCenter.default.post(name: .terminalPTYSessionReady, object: nil, userInfo: ["tabID": tab.id])
-                    } else if tab.layout.root.paneState?.ptySession != nil {
-                        session.terminalState = .ready
-                        self.setPhase(session, to: .ready, host: tab.hostItem.host, engine: "Observer", reason: "PTY ready")
-                    } else {
-                        Log.session.debug("[CONNECT] Ignoring .connected before PTY ready (phase=\(String(describing: session.phase)))")
-                    }
-                case .disconnected:
-                    session.connectedAt = nil
-                    if case .failed = session.phase { break }
-                    self.setPhase(session, to: .idle, host: tab.hostItem.host, engine: "Observer", reason: "disconnected")
-                case .reconnecting(let attempt, let max):
-                    self.setPhase(session, to: .reconnecting(attempt: attempt, maxAttempts: max), host: tab.hostItem.host, engine: "Observer", reason: "reconnecting")
-                case .connecting:
-                    if case .idle = session.phase {
-                        self.setPhase(session, to: .connectingTransport, host: tab.hostItem.host, engine: "Observer", reason: "connecting")
-                    } else {
-                        session.connectionState = state
-                    }
-                }
-            }
-        }
-    }
+    // MARK: - State Observer (see SessionManager+StateObserver.swift)
 
     // MARK: - Serial Connection
 

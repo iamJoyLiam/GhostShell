@@ -130,7 +130,11 @@ struct TerminalAIPanel: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: AppStyle.fontRegular))
                 .focused($isInputFocused)
-                .onSubmit { submit() }
+                .onSubmit {
+                    // While the IME is composing, Return confirms the candidate — never send.
+                    if isIMEComposing { return }
+                    submit()
+                }
 
             if engine.isProcessing {
                 Button {
@@ -206,9 +210,9 @@ struct TerminalAIPanel: View {
                         content: engine.streamingResponse,
                         onRun: { code in onRun(code) }
                     )
-                        .font(.system(size: AppStyle.fontBody))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    .font(.system(size: AppStyle.fontBody))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(maxHeight: 240)
             }
@@ -226,9 +230,9 @@ struct TerminalAIPanel: View {
                     content: response,
                     onRun: { code in onRun(code) }
                 )
-                    .font(.system(size: AppStyle.fontBody))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                .font(.system(size: AppStyle.fontBody))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxHeight: 240)
 
@@ -281,6 +285,12 @@ struct TerminalAIPanel: View {
     }
 
     // MARK: - Actions
+
+    /// Whether an IME is currently composing (e.g. Pinyin candidate selection). Return during
+    /// composition confirms the candidate and must reach the input method, never trigger send.
+    private var isIMEComposing: Bool {
+        (NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText() == true
+    }
 
     private func submit() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
