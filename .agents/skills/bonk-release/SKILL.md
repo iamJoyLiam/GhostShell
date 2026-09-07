@@ -92,6 +92,14 @@ sparkle:edSignature="xxx" length="12345678"
 
 **⚠️ 关键提醒：** 保存签名和长度，用于 appcast.xml！
 
+> **签名有效性规范（2026.3.1 血泪教训）：** Ed25519 签名是 hedged/randomized 的——
+> 同一个 DMG 每次签名输出的 `edSignature` 都不一样，但每一个都是合法签名。
+> 因此：
+> 1. **绝不能跨轮次复用或比对签名输出**——两次输出不同不代表文件被改动，是正常现象。
+> 2. **必须签名 → 验证 → 写入一气呵成**：用 `SUPublicEDKey`（见 `Bonk/Info.plist`）校验
+>    `isValidSignature == true`，只把验证通过的那组 `(length, edSignature)` 写入 `appcast.xml`。
+> 3. `length` 取签名当时读取到的文件字节数，并用 `stat` 交叉确认；签名后文件若有任何变动必须重新签名+验证。
+
 ### 步骤 8：更新 appcast.xml
 
 在 `appcast.xml` 中添加新版本（替换 VERSION / VERSION_CODE / DATE / LENGTH / SIGNATURE）：
