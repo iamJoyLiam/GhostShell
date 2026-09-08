@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#07080a" />
+    <meta name="color-scheme" content="dark" />
+    <title>快速上手 — Bonk macOS SSH 终端安装与使用教程</title>
+    <meta
+      name="description"
+      content="Bonk 快速上手：下载安装 DMG、添加主机、SSH 连接、SFTP 上传、分屏与工作区。macOS 15+，免费开源 SSH 终端，5 分钟开始使用。"
+    />
+    <link
+      rel="canonical"
+      href="https://bonk-terminal.pages.dev/docs/getting-started.html"
+    />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="快速上手 — Bonk 安装与使用教程" />
+    <meta
+      property="og:description"
+      content="5 分钟上手 Bonk：安装、连接、SFTP、分屏、工作区。"
+    />
+    <meta property="og:image" content="../assets/img/icon-1024.png" />
+    <link rel="icon" href="../assets/img/icon-64.png" type="image/png" />
+    <link rel="stylesheet" href="../assets/css/tokens.css?v=2026.3.1" />
+    <link rel="stylesheet" href="../assets/css/base.css?v=2026.3.1" />
+    <link rel="stylesheet" href="../assets/css/components.css?v=2026.3.1" />
+    <link rel="stylesheet" href="../assets/css/responsive.css?v=2026.3.1" />
+    <script>
+      window.BonkPageI18n = {
+        zh: {
+          "docs.gs.eyebrow": "文档 · 快速上手",
+          "docs.gs.h1": "5 分钟跑起第一个会话",
+          "docs.gs.desc":
+            "从安装到连上服务器：5 步，每步约 1 分钟。跟着做就行。",
+          "docs.gs.cta.dl": "下载 Bonk",
+          "docs.gs.cta.home": "返回首页",
+          "docs.gs.toc.title": "本页导航",
+          "docs.gs.toc.1": "① 安装",
+          "docs.gs.toc.2": "② 添加主机",
+          "docs.gs.toc.3": "③ 日常操作",
+          "docs.gs.toc.4": "④ 文件与隧道",
+          "docs.gs.toc.5": "⑤ 自愈与排错",
+          "docs.gs.toc.6": "FAQ",
+          "docs.gs.s1.eyebrow": "第 1 步",
+          "docs.gs.s1.title": "安装",
+          "docs.gs.s1.l1t": "按芯片下载 DMG",
+          "docs.gs.s1.l1d":
+            "Apple Silicon 选 arm64 版，Intel Mac 选 x86_64 版，约 24 MB，从官网下载区或 GitHub Releases 拿。",
+          "docs.gs.s1.l2t": "拖进 Applications",
+          "docs.gs.s1.l2d":
+            "打开 DMG，把 Bonk 拖进 Applications 文件夹。没有安装向导，不写系统目录，重装即删即走。",
+          "docs.gs.s1.l3t": "过 Gatekeeper",
+          "docs.gs.s1.l3d":
+            "首次打开被拦截：右键应用 → 打开，或去 系统设置 → 隐私与安全性 里允许。需要 macOS 15 或更高版本。",
+          "docs.gs.s2.eyebrow": "第 2 步",
+          "docs.gs.s2.title": "添加第一台主机",
+          "docs.gs.s2.l1t": "点 ＋ 快速连接",
+          "docs.gs.s2.l1d":
+            "点工具栏 ＋，填主机地址、端口（默认 22）和用户名。10 秒加一台，加完自动进左侧边栏分组列表。",
+          "docs.gs.s2.l2t": "密码或私钥都行",
+          "docs.gs.s2.l2d":
+            "凭据存进 macOS Keychain，私钥可进 Secure Enclave；下次连接自动填充，不用反复输入。",
+          "docs.gs.s2.l3t": "核对一次主机指纹",
+          "docs.gs.s2.l3d":
+            "首次连接会亮出主机指纹请你确认，防中间人。确认一次，之后点主机即连，约 1 秒进终端。",
+          "docs.gs.s2.l4t": "有现成配置？一键导入",
+          "docs.gs.s2.l4d":
+            "导入页自动识别 ~/.ssh/config，以及 Tabby、iTerm2、Electerm、WindTerm 和 CSV，主机列表直接生成，不用一台台手工加。",
+          "docs.gs.s3.eyebrow": "第 3 步",
+          "docs.gs.s3.title": "日常操作",
+          "docs.gs.s3.term":
+            "deploy@prod ~ $ uptime\n 09:42:01 up 12 days,  3:17,  load average: 0.08, 0.03, 0.01",
+          "docs.gs.s3.l1s": "胶囊标签页",
+          "docs.gs.s3.l1":
+            "一台主机一个胶囊 Tab，圆点即连接状态，＋ 随时加连。",
+          "docs.gs.s3.l2s": "分屏 + 广播",
+          "docs.gs.s3.l2":
+            "窗口内水平/垂直切多格，一边 tail 日志一边跑命令；广播输入把同一条命令发给所有格子，批量运维一次搞定。",
+          "docs.gs.s3.l3s": "Quake 下拉终端",
+          "docs.gs.s3.l3":
+            "任何应用里按 ⌘`，终端从屏幕边缘滑下来，敲完收起，不用来回切窗口。",
+          "docs.gs.s3.l4s": "行内补全 + Agent",
+          "docs.gs.s3.l4":
+            "输入时灰字跟随，Tab 一键接受；复杂任务交给 Agent 模式：先报计划、再要授权、分步执行，跑偏自动熔断。",
+          "docs.gs.s3.l5s": "工作区",
+          "docs.gs.s3.l5":
+            "把整套窗口、标签、分屏存成工作区，明天打开一键回到昨天现场。",
+          "docs.gs.s3.l6s": "会话录制",
+          "docs.gs.s3.l6":
+            "重要操作点录制存档，在录制列表里回放、删除，复盘和审计都方便。",
+          "docs.gs.s4.eyebrow": "第 4 步",
+          "docs.gs.s4.title": "传文件、打隧道",
+          "docs.gs.s4.l1s": "SFTP",
+          "docs.gs.s4.l1":
+            "点工具栏文件夹图标打开可视化文件浏览器，拖拽上传下载；小文件也支持 Zmodem 收发。",
+          "docs.gs.s4.l2s": "端口转发",
+          "docs.gs.s4.l2":
+            "本地 / 远程 / SOCKS5 三种隧道配好即用：看内网后台、连远端数据库都走它。",
+          "docs.gs.s4.l3s": "跳板机",
+          "docs.gs.s4.l3":
+            "多级跳板在连接设置里一层层配，内网机器一次直达，不用手动 ssh -J 接力。",
+          "docs.gs.s4.l4s": "串口",
+          "docs.gs.s4.l4":
+            "调交换机、开发板直接连串口，波特率等参数在连接里配。",
+          "docs.gs.s5.eyebrow": "第 5 步",
+          "docs.gs.s5.title": "自愈与排错",
+          "docs.gs.s5.l1s": "约 1 秒建连",
+          "docs.gs.s5.l1":
+            "VNext 混合引擎：原生优先、OpenSSH 兜底，正常网络一点即进。",
+          "docs.gs.s5.l2s": "睡眠断网自动自愈",
+          "docs.gs.s5.l2":
+            "合盖、切 Wi-Fi、网络抖动后自动重连，不用手动一个个重连标签页。",
+          "docs.gs.s5.l3s": "报错说人话",
+          "docs.gs.s5.l3":
+            "认证失败会自动重试，并告诉你到底是密码错、密钥不对还是主机指纹变了，而不是甩一句 Connection failed。",
+          "docs.gs.s6.eyebrow": "FAQ",
+          "docs.gs.s6.title": "常见问题",
+          "docs.gs.s6.l1s": "要注册账号吗？",
+          "docs.gs.s6.l1":
+            "不要。下载、加主机、连接，没有登录、没有云同步，离线照样用。",
+          "docs.gs.s6.l2s": "我的命令会上云吗？",
+          "docs.gs.s6.l2":
+            "不会。凭据只在 macOS Keychain，命令历史只在本地，同步也只走你自己的 iCloud。",
+          "docs.gs.s6.l3s": "Bonk 有 AI 吗？",
+          "docs.gs.s6.l3":
+            "有：Agent 模式分步执行任务，行内补全边输边猜，支持 Copilot / Claude / OpenAI / Gemini / Ollama 或自定义提供商。",
+          "docs.gs.s6.l4s": "能当本地终端用吗？",
+          "docs.gs.s6.l4":
+            "能，是完整终端模拟器（SF Mono 14、块光标、16 色 ANSI、深色/浅色/跟随系统），但主场是远程服务器。",
+          "docs.gs.s7.eyebrow": "下一步",
+          "docs.gs.s7.title": "深入了解",
+          "docs.gs.s7.r1": "SSH 终端",
+          "docs.gs.s7.r2": "SFTP",
+          "docs.gs.s7.r3": "端口转发",
+          "docs.gs.s7.r4": "分屏",
+        },
+        en: {
+          "docs.gs.eyebrow": "Docs · Getting Started",
+          "docs.gs.h1": "First session in 5 minutes",
+          "docs.gs.desc":
+            "From install to connected server: 5 steps, about a minute each. Just follow along.",
+          "docs.gs.cta.dl": "Download Bonk",
+          "docs.gs.cta.home": "Back to Home",
+          "docs.gs.toc.title": "On this page",
+          "docs.gs.toc.1": "① Install",
+          "docs.gs.toc.2": "② Add a host",
+          "docs.gs.toc.3": "③ Daily ops",
+          "docs.gs.toc.4": "④ Files & tunnels",
+          "docs.gs.toc.5": "⑤ Healing & errors",
+          "docs.gs.toc.6": "FAQ",
+          "docs.gs.s1.eyebrow": "Step 1",
+          "docs.gs.s1.title": "Install",
+          "docs.gs.s1.l1t": "Download the DMG for your chip",
+          "docs.gs.s1.l1d":
+            "arm64 for Apple Silicon, x86_64 for Intel Macs — about 24 MB, from the download section or GitHub Releases.",
+          "docs.gs.s1.l2t": "Drag into Applications",
+          "docs.gs.s1.l2d":
+            "Open the DMG and drag Bonk into Applications. No wizard, nothing written into system dirs — delete to uninstall.",
+          "docs.gs.s1.l3t": "Pass Gatekeeper",
+          "docs.gs.s1.l3d":
+            "Blocked on first launch? Right-click → Open, or allow it in System Settings → Privacy & Security. Requires macOS 15 or later.",
+          "docs.gs.s2.eyebrow": "Step 2",
+          "docs.gs.s2.title": "Add your first host",
+          "docs.gs.s2.l1t": "Hit ＋ for Quick Connect",
+          "docs.gs.s2.l1d":
+            "Click ＋ in the toolbar, fill in host, port (22 by default) and username. 10 seconds a machine, then it lands in the grouped sidebar.",
+          "docs.gs.s2.l2t": "Password or key",
+          "docs.gs.s2.l2d":
+            "Credentials go to the macOS Keychain, keys can use the Secure Enclave — auto-filled next time, no retyping.",
+          "docs.gs.s2.l3t": "Verify the fingerprint once",
+          "docs.gs.s2.l3d":
+            "First connect shows the host fingerprint for MITM check. Confirm once; after that one click connects in ~1 second.",
+          "docs.gs.s2.l4t": "Have existing config? Import it",
+          "docs.gs.s2.l4d":
+            "The import page auto-detects ~/.ssh/config plus Tabby, iTerm2, Electerm, WindTerm and CSV — the host list builds itself.",
+          "docs.gs.s3.eyebrow": "Step 3",
+          "docs.gs.s3.title": "Daily operations",
+          "docs.gs.s3.term":
+            "deploy@prod ~ $ uptime\n 09:42:01 up 12 days,  3:17,  load average: 0.08, 0.03, 0.01",
+          "docs.gs.s3.l1s": "Capsule tabs",
+          "docs.gs.s3.l1":
+            "One capsule tab per host, dot shows connection state, ＋ adds more anytime.",
+          "docs.gs.s3.l2s": "Splits + broadcast",
+          "docs.gs.s3.l2":
+            "Split a window horizontally/vertically — tail logs while running commands; broadcast input sends one command to every pane for batch ops.",
+          "docs.gs.s3.l3s": "Quake dropdown",
+          "docs.gs.s3.l3":
+            "Press ⌘` from any app; the terminal slides down and tucks away. No window juggling.",
+          "docs.gs.s3.l4s": "Completions + Agent",
+          "docs.gs.s3.l4":
+            "Ghost text follows input, Tab accepts; hand complex jobs to Agent mode — plans first, asks approval, executes step by step, auto-stops on drift.",
+          "docs.gs.s3.l5s": "Workspaces",
+          "docs.gs.s3.l5":
+            "Save the whole window — tabs and splits — and reopen tomorrow exactly where you left off.",
+          "docs.gs.s3.l6s": "Session recording",
+          "docs.gs.s3.l6":
+            "Record important ops; replay or delete them from the recording library — handy for review and audit.",
+          "docs.gs.s4.eyebrow": "Step 4",
+          "docs.gs.s4.title": "Move files, open tunnels",
+          "docs.gs.s4.l1s": "SFTP",
+          "docs.gs.s4.l1":
+            "The toolbar folder icon opens a visual file browser with drag-and-drop; Zmodem send/receive covers small files too.",
+          "docs.gs.s4.l2s": "Port forwarding",
+          "docs.gs.s4.l2":
+            "Local / remote / SOCKS5 tunnels ready to configure — internal dashboards and remote databases through them.",
+          "docs.gs.s4.l3s": "Jump hosts",
+          "docs.gs.s4.l3":
+            "Chain multi-hop jump hosts in connection settings and reach inner machines in one go — no manual ssh -J relay.",
+          "docs.gs.s4.l4s": "Serial port",
+          "docs.gs.s4.l4":
+            "Debugging switches or dev boards? Connect over serial with baud rate set in the connection.",
+          "docs.gs.s5.eyebrow": "Step 5",
+          "docs.gs.s5.title": "Self-healing & errors",
+          "docs.gs.s5.l1s": "~1s connects",
+          "docs.gs.s5.l1":
+            "VNext hybrid engine: native-first with OpenSSH fallback — click and you're in on a healthy network.",
+          "docs.gs.s5.l2s": "Sleep & network healing",
+          "docs.gs.s5.l2":
+            "Auto-reconnects after lid-close, Wi-Fi switches and flaps — no manually redialing every tab.",
+          "docs.gs.s5.l3s": "Errors in plain words",
+          "docs.gs.s5.l3":
+            "Failed auth retries automatically and tells you whether it's a wrong password, a bad key, or a changed fingerprint — not just 'Connection failed'.",
+          "docs.gs.s6.eyebrow": "FAQ",
+          "docs.gs.s6.title": "Common questions",
+          "docs.gs.s6.l1s": "Do I need an account?",
+          "docs.gs.s6.l1":
+            "No. Download, add hosts, connect — no sign-in, no cloud sync, works offline.",
+          "docs.gs.s6.l2s": "Do my commands go to the cloud?",
+          "docs.gs.s6.l2":
+            "No. Credentials stay in the macOS Keychain, history stays local, sync only ever uses your own iCloud.",
+          "docs.gs.s6.l3s": "Does Bonk have AI?",
+          "docs.gs.s6.l3":
+            "Yes: Agent mode executes multi-step tasks and inline completions guess as you type — bring Copilot / Claude / OpenAI / Gemini / Ollama or a custom provider.",
+          "docs.gs.s6.l4s": "Can it be my local terminal?",
+          "docs.gs.s6.l4":
+            "Yes — a full terminal emulator (SF Mono 14, block cursor, 16 ANSI colors, dark/light/system themes), though remote servers are its home turf.",
+          "docs.gs.s7.eyebrow": "Next",
+          "docs.gs.s7.title": "Dive deeper",
+          "docs.gs.s7.r1": "SSH Terminal",
+          "docs.gs.s7.r2": "SFTP",
+          "docs.gs.s7.r3": "Port Forwarding",
+          "docs.gs.s7.r4": "Split Panes",
+        },
+      };
+    </script>
+  </head>
+  <body>
+    <header class="nav" id="nav">
+      <div class="container nav__inner">
+        <a href="../index.html" class="nav__brand" aria-label="Bonk">
+          <img
+            class="nav__logo"
+            src="../assets/img/icon-256.png"
+            alt="Bonk"
+            width="28"
+            height="28"
+          />
+          <span>Bonk</span>
+        </a>
+        <nav class="nav__links" aria-label="Primary">
+          <a
+            href="../index.html#features"
+            class="nav__link"
+            data-i18n="nav.features"
+            >功能</a
+          >
+          <a href="getting-started.html" class="nav__link" data-i18n="nav.docs"
+            >文档</a
+          >
+          <a
+            href="../index.html#download"
+            class="nav__link"
+            data-i18n="nav.download"
+            >下载</a
+          >
+        </nav>
+        <div class="nav__actions">
+          <div class="lang-switch" role="group" aria-label="Language">
+            <button type="button" data-lang="zh" aria-pressed="true">中</button>
+            <button type="button" data-lang="en" aria-pressed="false">
+              EN
+            </button>
+          </div>
+          <a
+            href="https://github.com/iamJoyLiam/Bonk"
+            class="gh-badge"
+            target="_blank"
+            rel="noopener"
+            aria-label="GitHub"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"
+              />
+            </svg>
+            <span class="gh-badge__label" data-i18n="nav.github">GitHub</span>
+          </a>
+          <button
+            class="nav__toggle"
+            id="nav-toggle"
+            aria-label="Menu"
+            aria-expanded="false"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="container hero__inner">
+          <p class="hero__mono" data-i18n="docs.gs.eyebrow">文档 · 快速上手</p>
+          <h1 class="hero__title" data-i18n="docs.gs.h1">
+            5 分钟跑起第一个会话
+          </h1>
+          <p class="hero__desc" data-i18n="docs.gs.desc">
+            从安装到连上服务器：5 步，每步约 1 分钟。跟着做就行。
+          </p>
+          <div class="hero__cta">
+            <a
+              href="../index.html#download"
+              class="btn btn-primary btn-lg"
+              data-i18n="docs.gs.cta.dl"
+              >下载 Bonk</a
+            >
+            <a
+              href="../index.html"
+              class="btn btn-ghost btn-lg"
+              data-i18n="docs.gs.cta.home"
+              >返回首页</a
+            >
+          </div>
+        </div>
+      </section>
+
+      <section class="section toc-section">
+        <div class="container">
+          <p class="toc-title" data-i18n="docs.gs.toc.title">本页导航</p>
+          <div class="toc">
+            <a href="#install" data-i18n="docs.gs.toc.1">① 安装</a>
+            <a href="#add-host" data-i18n="docs.gs.toc.2">② 添加主机</a>
+            <a href="#daily" data-i18n="docs.gs.toc.3">③ 日常操作</a>
+            <a href="#files" data-i18n="docs.gs.toc.4">④ 文件与隧道</a>
+            <a href="#healing" data-i18n="docs.gs.toc.5">⑤ 自愈与排错</a>
+            <a href="#faq" data-i18n="docs.gs.toc.6">FAQ</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="install">
+        <div class="container">
+          <div class="section__head section__head--center">
+            <span class="section__eyebrow" data-i18n="docs.gs.s1.eyebrow"
+              >第 1 步</span
+            >
+            <h2 class="section__title" data-i18n="docs.gs.s1.title">安装</h2>
+          </div>
+          <ol class="steps">
+            <li class="step">
+              <span class="step__num">1</span>
+              <div class="step__body">
+                <h3 class="step__title" data-i18n="docs.gs.s1.l1t">
+                  按芯片下载 DMG
+                </h3>
+                <p class="step__desc" data-i18n="docs.gs.s1.l1d">
+                  Apple Silicon 选 arm64 版，Intel Mac 选 x86_64 版。
+                </p>
+              </div>
+            </li>
+            <li class="step">
+              <span class="step__num">2</span>
+              <div class="step__body">
+                <h3 class="step__title" data-i18n="docs.gs.s1.l2t">
+                  拖进 Applications
+                </h3>
+                <p class="step__desc" data-i18n="docs.gs.s1.l2d">
+                  打开 DMG，把 Bonk 拖进 Applications 文件夹。
+                </p>
+              </div>
+            </li>
+            <li class="step">
+              <span class="step__num">3</span>
+              <div class="step__body">
+                <h3 class="step__title" data-i18n="docs.gs.s1.l3t">
+                  过 Gatekeeper
+                </h3>
+                <p class="step__desc" data-i18n="docs.gs.s1.l3d">
+                  右键应用 → 打开，或去 系统设置 → 隐私与安全性 里允许。
+                </p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section" id="add-host">
+        <div class="container">
+          <div class="section__head section__head--center">
+            <span class="section__eyebrow" data-i18n="docs.gs.s2.eyebrow"
+              >第 2 步</span
+            >
+            <h2 class="section__title" data-i18n="docs.gs.s2.title">
+              添加第一台主机
+            </h2>
+          </div>
+          <ol class="steps">
+            <li class="step">
+              <span class="step__num">1</span>
+              <div class="step__body">
+                <h3 class="step__title" data-i18n="docs.gs.s2.l1t">
+                  点 ＋ 快速连接
+                </h3>
+                <p class="step__desc" data-i18n="docs.gs.s2.l1d">
+                  点工具栏 ＋，填主机地址、端口和用户名。
+                </p>
+              </div>
+            </li>
+            <li class="step">
+              <span class="step__num">2</span>
+              <div class="step__body">
+                <h3 class="step__title" data-i18n="docs.gs.s2.l2t">
+                  密码或私钥都行
+                </h3>
+                <p class="step__desc" data-i18n="docs.gs.s2.l2d">
+                  凭据存进 macOS Keychain，下次自动填充。
+                </p>
+              </div>
+            </li>
+            <li class="step">
+              <span class="step__num">3</span>
+              <div class="step__body">
+                <h3 class="step__title" data-i18n="docs.gs.s2.l3t">
+                  核对一次主机指纹
+                </h3>
+                <p class="step__desc" data-i18n="docs.gs.s2.l3d">
+                  第一次连确认主机指纹，之后点主机即连。
+                </p>
+              </div>
+            </li>
+            <li class="step">
+              <span class="step__num">4</span>
+              <div class="step__body">
+                <h3 class="step__title" data-i18n="docs.gs.s2.l4t">
+                  有现成配置？一键导入
+                </h3>
+                <p class="step__desc" data-i18n="docs.gs.s2.l4d">
+                  自动识别 SSH config、Tabby、iTerm2、CSV，主机列表直接生成。
+                </p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section" id="daily">
+        <div class="container">
+          <div class="section__head section__head--center">
+            <span class="section__eyebrow" data-i18n="docs.gs.s3.eyebrow"
+              >第 3 步</span
+            >
+            <h2 class="section__title" data-i18n="docs.gs.s3.title">
+              日常操作
+            </h2>
+          </div>
+          <div class="doc-term" data-i18n="docs.gs.s3.term">
+            deploy@prod ~ $ uptime 09:42:01 up 12 days, 3:17, load average:
+            0.08, 0.03, 0.01
+          </div>
+          <ul class="tips">
+            <li class="tip">
+              <strong data-i18n="docs.gs.s3.l1s">胶囊标签页</strong
+              ><span data-i18n="docs.gs.s3.l1"
+                >一台主机一个胶囊 Tab，圆点即连接状态。</span
+              >
+            </li>
+            <li class="tip">
+              <strong data-i18n="docs.gs.s3.l2s">分屏 + 广播</strong
+              ><span data-i18n="docs.gs.s3.l2"
+                >窗口内水平/垂直切多格；广播输入把同一条命令发给所有格子。</span
+              >
+            </li>
+            <li class="tip">
+              <strong data-i18n="docs.gs.s3.l3s">Quake 下拉终端</strong
+              ><span data-i18n="docs.gs.s3.l3"
+                >任何应用里按 ⌘` 呼出，用完收起。</span
+              >
+            </li>
+            <li class="tip">
+              <strong data-i18n="docs.gs.s3.l4s">行内补全 + Agent</strong
+              ><span data-i18n="docs.gs.s3.l4"
+                >灰字跟随按 Tab 接受；复杂任务交给 Agent 模式分步执行。</span
+              >
+            </li>
+            <li class="tip">
+              <strong data-i18n="docs.gs.s3.l5s">工作区</strong
+              ><span data-i18n="docs.gs.s3.l5"
+                >把整套窗口存成工作区，明天一键回到昨天现场。</span
+              >
+            </li>
+            <li class="tip">
+              <strong data-i18n="docs.gs.s3.l6s">会话录制</strong
+              ><span data-i18n="docs.gs.s3.l6"
+                >重要操作点录制存档，列表里回放、删除。</span
+              >
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section" id="files">
+        <div class="container">
+          <div class="section__head section__head--center">
+            <span class="section__eyebrow" data-i18n="docs.gs.s4.eyebrow"
+              >第 4 步</span
+            >
+            <h2 class="section__title" data-i18n="docs.gs.s4.title">
+              传文件、打隧道
+            </h2>
+          </div>
+          <ul class="tips">
+            <li class="tip">
+              <strong data-i18n="docs.gs.s4.l1s">SFTP</strong
+              ><span data-i18n="docs.gs.s4.l1"
+                >工具栏文件夹图标开可视化文件浏览器，拖拽上传下载；也支持
+                Zmodem。</span
+              >
+            </li>
+            <li class="tip">
+              <strong data-i18n="docs.gs.s4.l2s">端口转发</strong
+              ><span data-i18n="docs.gs.s4.l2"
+                >本地 / 远程 / SOCKS5
+                三种隧道，看内网后台、连远端库都走它。</span
+              >
+            </li>
+            <li class="tip">
+              <strong data-i18n="docs.gs.s4.l3s">跳板机</strong
+              ><span data-i18n="docs.gs.s4.l3"
+                >多级跳板在连接设置里配好，内网机器一次直达。</span
+              >
+            </li>
+            <li class="tip">
+              <strong data-i18n="docs.gs.s4.l4s">串口</strong
+              ><span data-i18n="docs.gs.s4.l4"
+                >调交换机、开发板直接连串口，参数在连接里配。</span
+              >
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section" id="healing">
+        <div class="container">
+          <div class="section__head section__head--center">
+            <span class="section__eyebrow" data-i18n="docs.gs.s5.eyebrow"
+              >第 5 步</span
+            >
+            <h2 class="section__title" data-i18n="docs.gs.s5.title">
+              自愈与排错
+            </h2>
+          </div>
+          <ul class="tips">
+            <li class="tip">
+              <strong data-i18n="docs.gs.s5.l1s">约 1 秒建连</strong
+              ><span data-i18n="docs.gs.s5.l1"
+                >VNext 混合引擎：原生优先、OpenSSH 兜底。</span
+              >
+            </li>
+            <li class="tip">
+              <strong data-i18n="docs.gs.s5.l2s">睡眠断网自动自愈</strong
+              ><span data-i18n="docs.gs.s5.l2"
+                >合盖、切网、抖动后自动重连，不用手动重拨。</span
+              >
+            </li>
+            <li class="tip">
+              <strong data-i18n="docs.gs.s5.l3s">报错说人话</strong
+              ><span data-i18n="docs.gs.s5.l3"
+                >认证失败自动重试，并告诉你是密码错、密钥不对还是指纹变了。</span
+              >
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section" id="faq">
+        <div class="container">
+          <div class="section__head section__head--center">
+            <span class="section__eyebrow" data-i18n="docs.gs.s6.eyebrow"
+              >FAQ</span
+            >
+            <h2 class="section__title" data-i18n="docs.gs.s6.title">
+              常见问题
+            </h2>
+          </div>
+          <ul class="faq">
+            <li class="faq-item">
+              <strong data-i18n="docs.gs.s6.l1s">要注册账号吗？</strong
+              ><span data-i18n="docs.gs.s6.l1"
+                >不要。下载、加主机、连接，离线照样用。</span
+              >
+            </li>
+            <li class="faq-item">
+              <strong data-i18n="docs.gs.s6.l2s">我的命令会上云吗？</strong
+              ><span data-i18n="docs.gs.s6.l2"
+                >不会。凭据只在 Keychain，历史只在本地。</span
+              >
+            </li>
+            <li class="faq-item">
+              <strong data-i18n="docs.gs.s6.l3s">Bonk 有 AI 吗？</strong
+              ><span data-i18n="docs.gs.s6.l3"
+                >有：Agent 模式分步执行任务，行内补全边输边猜，支持 Copilot /
+                Claude / OpenAI / Gemini / Ollama 或自定义提供商。</span
+              >
+            </li>
+            <li class="faq-item">
+              <strong data-i18n="docs.gs.s6.l4s">能当本地终端用吗？</strong
+              ><span data-i18n="docs.gs.s6.l4"
+                >能，是完整终端模拟器，但主场是远程服务器。</span
+              >
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="section__head section__head--center">
+            <span class="section__eyebrow" data-i18n="docs.gs.s7.eyebrow"
+              >下一步</span
+            >
+            <h2 class="section__title" data-i18n="docs.gs.s7.title">
+              深入了解
+            </h2>
+          </div>
+          <div class="hero__cta">
+            <a
+              href="../features/ssh-terminal.html"
+              class="btn btn-ghost"
+              data-i18n="docs.gs.s7.r1"
+              >SSH 终端</a
+            >
+            <a
+              href="../features/sftp.html"
+              class="btn btn-ghost"
+              data-i18n="docs.gs.s7.r2"
+              >SFTP</a
+            >
+            <a
+              href="../features/port-forwarding.html"
+              class="btn btn-ghost"
+              data-i18n="docs.gs.s7.r3"
+              >端口转发</a
+            >
+            <a
+              href="../features/split-panes.html"
+              class="btn btn-ghost"
+              data-i18n="docs.gs.s7.r4"
+              >分屏</a
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer__inner">
+        <div class="footer__brand">
+          <img
+            class="footer__logo"
+            src="../assets/img/icon-256.png"
+            alt="Bonk"
+            width="26"
+            height="26"
+          />
+          <span>Bonk</span>
+        </div>
+        <nav class="footer__links" aria-label="Footer">
+          <a
+            href="https://github.com/iamJoyLiam/Bonk"
+            target="_blank"
+            rel="noopener"
+            data-i18n="nav.source"
+            >源码</a
+          >
+          <a
+            href="https://github.com/iamJoyLiam/Bonk/releases"
+            target="_blank"
+            rel="noopener"
+            >Releases</a
+          >
+          <a href="../index.html#features" data-i18n="nav.features">功能</a>
+          <a href="getting-started.html" data-i18n="nav.docs">文档</a>
+          <a href="../index.html#download" data-i18n="nav.download">下载</a>
+        </nav>
+        <div class="footer__copy">
+          <span data-i18n="footer.copy">© 2026 Bonk. 保留所有权利。</span>
+        </div>
+      </div>
+    </footer>
+    <script src="../assets/js/i18n.js?v=2026.3.1" defer></script>
+    <script src="../assets/js/main.js?v=2026.3.1" defer></script>
+  </body>
+</html>

@@ -14,53 +14,16 @@
       "nav.compare": "对比",
       "nav.docs": "文档",
 
-      "hero.badge": "开源 · 免费 · macOS 原生 · MIT",
       "hero.cta.download": "下载 for Mac",
       "hero.cta.source": "查看源码",
       "hero.meta.os": "macOS 15+",
       "hero.meta.arch": "arm64 / x86_64",
       "hero.meta.size": "约 24 MB",
 
-      "term.title": "Bonk — SSH",
       "term.tab1": "prod-server",
       "term.tab2": "staging",
       "term.tab3": "dev-box",
       "app.search": "搜索",
-
-      "features.eyebrow": "核心功能",
-      "features.title": "为远程工作而生",
-      "features.subtitle":
-        "连接、传输、转发、自动化——专业运维每天都在用的，Bonk 都准备好了。",
-      "features.f1.title": "SSH 终端",
-      "features.f1.desc": "多标签、水平/垂直分屏，一个窗口同时盯多台机器。",
-      "features.f2.title": "SFTP 文件管理",
-      "features.f2.desc":
-        "独立窗口的可视化文件浏览器，拖拽上传下载，无需离开 Bonk。",
-      "features.f3.title": "端口转发",
-      "features.f3.desc":
-        "本地、远程、动态（SOCKS5）三种模式，穿透内网一步到位。",
-      "features.f4.title": "串口连接",
-      "features.f4.desc": "直连 /dev/tty.* 串口设备，调试路由器、嵌入式硬件。",
-      "features.f5.title": "跳板机",
-      "features.f5.desc": "多级 Jump Host 链式跳转，复杂网络拓扑从容应对。",
-      "features.f6.title": "工作区",
-      "features.f6.desc": "保存并一键恢复整套多会话布局，开机即回到工作现场。",
-      "features.f7.title": "代码片段 · 命令历史",
-      "features.f7.desc":
-        "常用命令存成片段随时调用，历史自动记录，告别重复输入。",
-      "features.f8.title": "Quake 下拉终端",
-      "features.f8.desc": "全局热键 ⌘` 呼出下拉终端，任何应用里随时一键到达。",
-      "features.f9.title": "自定义工具栏",
-      "features.f9.desc":
-        "原生 NSToolbar，拖拽排序、右键自定义，布局自动保存。",
-      "features.f10.title": "主题系统",
-      "features.f10.desc":
-        "Dark、Dracula、Nord、Solarized 等多套内置主题，支持自定义。",
-      "features.f11.title": "广播输入",
-      "features.f11.desc": "一次输入，同步到所有分屏面板——批量运维利器。",
-      "features.f12.title": "安全优先",
-      "features.f12.desc":
-        "Secure Enclave P256 密钥、Keychain 凭据、主机密钥校验。",
 
       "specs.eyebrow": "技术规格",
       "specs.title": "开箱即用的专业功能",
@@ -93,9 +56,12 @@
       "hero.title.a": "原生 macOS",
       "hero.title.b": "SSH 终端",
       "hero.desc":
-        "连接、操作、自动化——在 Mac 上管理服务器，本该如此行云流水。",
+        "免费开源。约 1 秒连上服务器：多标签分屏、SFTP、端口转发，一个窗口管完所有机器；Agent 模式与行内补全帮你干活。",
 
-      "proof.caption": "GitHub 开源 · MIT 协议 · 原生 Swift 构建",
+      "proof.s1": "约 1 秒建连",
+      "proof.s2": "MIT 开源免费",
+      "proof.s3": "原生 Swift 构建",
+      "proof.s4": "约 24 MB 轻量包",
 
       "sig.eyebrow": "招牌功能",
       "sig.title": "每天都在用的六件事",
@@ -105,7 +71,8 @@
       "sig.f1.desc":
         "分步执行先报计划、再要授权，跑偏自动熔断——监督式执行，不抢方向盘。",
       "sig.f2.title": "行内补全",
-      "sig.f2.desc": "Warp 式灰字提示：本地即时层先行，AI 通道补位，一键接受。",
+      "sig.f2.desc":
+        "灰字提示跟随输入：本地即时层先行，AI 通道补位，按 Tab 一键接受。",
       "sig.f3.title": "VNext 连接引擎",
       "sig.f3.desc":
         "原生优先、OpenSSH 兜底：约 1 秒建连，睡眠与网络切换后自动自愈。",
@@ -155,59 +122,16 @@
       "nav.compare": "Compare",
       "nav.docs": "Docs",
 
-      "hero.badge": "Open source · Free · macOS native · MIT",
       "hero.cta.download": "Download for Mac",
       "hero.cta.source": "View Source",
       "hero.meta.os": "macOS 15+",
       "hero.meta.arch": "arm64 / x86_64",
       "hero.meta.size": "~24 MB",
 
-      "term.title": "Bonk — SSH",
       "term.tab1": "prod-server",
       "term.tab2": "staging",
       "term.tab3": "dev-box",
       "app.search": "Search",
-
-      "features.eyebrow": "Core Features",
-      "features.title": "Built for remote work",
-      "features.subtitle":
-        "Connect, transfer, forward, automate — everything a pro operator reaches for every day.",
-      "features.f1.title": "SSH Terminal",
-      "features.f1.desc":
-        "Tabs and horizontal/vertical split panes — watch several machines at once.",
-      "features.f2.title": "SFTP File Browser",
-      "features.f2.desc":
-        "A visual browser in its own window. Drag-and-drop uploads without leaving Bonk.",
-      "features.f3.title": "Port Forwarding",
-      "features.f3.desc":
-        "Local, remote, and dynamic (SOCKS5) forwarding — pierce intranets in one step.",
-      "features.f4.title": "Serial Connection",
-      "features.f4.desc":
-        "Connect directly to /dev/tty.* devices — debug routers and embedded hardware.",
-      "features.f5.title": "Jump Hosts",
-      "features.f5.desc":
-        "Multi-hop Jump Host chains, handling complex network topologies.",
-      "features.f6.title": "Workspaces",
-      "features.f6.desc":
-        "Save and restore entire multi-session layouts — back to work instantly.",
-      "features.f7.title": "Snippets · History",
-      "features.f7.desc":
-        "Store frequent commands as snippets, auto-record history — never type twice.",
-      "features.f8.title": "Quake Terminal",
-      "features.f8.desc":
-        "Drop-down terminal on the global ⌘` hotkey, from any app.",
-      "features.f9.title": "Custom Toolbar",
-      "features.f9.desc":
-        "Native NSToolbar — drag to reorder, right-click to customize, layout auto-saved.",
-      "features.f10.title": "Theme System",
-      "features.f10.desc":
-        "Dark, Dracula, Nord, Solarized and more, with full customization.",
-      "features.f11.title": "Broadcast Input",
-      "features.f11.desc":
-        "Type once, echo across every split pane — a batch-ops powerhouse.",
-      "features.f12.title": "Security First",
-      "features.f12.desc":
-        "Secure Enclave P256 keys, Keychain credentials, host key validation.",
 
       "specs.eyebrow": "Specs",
       "specs.title": "Pro features, ready out of the box",
@@ -240,10 +164,12 @@
       "hero.title.a": "The native macOS",
       "hero.title.b": "SSH terminal",
       "hero.desc":
-        "Connect, operate, automate — managing servers from your Mac, effortlessly.",
+        "Free and open source. Connect in ~1s: tabbed splits, SFTP, port forwarding — every machine in one window, with Agent mode and inline completions helping.",
 
-      "proof.caption":
-        "Open source on GitHub · MIT License · Native Swift build",
+      "proof.s1": "~1s connects",
+      "proof.s2": "MIT open source",
+      "proof.s3": "Native Swift build",
+      "proof.s4": "~24 MB lightweight",
 
       "sig.eyebrow": "Signature",
       "sig.title": "Six things you use every day",
@@ -254,7 +180,7 @@
         "Plans first, asks permission, auto-stops on drift — supervised execution that never grabs the wheel.",
       "sig.f2.title": "Inline Completions",
       "sig.f2.desc":
-        "Warp-style ghost text: instant local tier first, AI channel as backup, one keypress to accept.",
+        "Ghost text as you type: instant local tier first, AI channel as backup, Tab to accept.",
       "sig.f3.title": "VNext Engine",
       "sig.f3.desc":
         "Native-first with OpenSSH fallback: ~1s connects, self-healing after sleep and network changes.",

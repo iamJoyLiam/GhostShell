@@ -859,13 +859,31 @@
   padding: var(--space-4) 0 0;
 }
 
-.proof__inner {
+.proof__stats {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
+  gap: var(--space-3) var(--space-5);
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+.proof__stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  white-space: nowrap;
+}
+
+.proof__stat::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--term-green);
+  flex: none;
 }
 
 /* ==================== SIGNATURE FEATURES ==================== */
@@ -1190,4 +1208,56 @@
   .app-tools .tb-hide-sm {
     display: none;
   }
+}
+
+/* ==================== DOCS: TOC + transcript ==================== */
+.toc-section {
+  padding-bottom: 0;
+}
+
+.toc-title {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0 0 var(--space-4);
+}
+
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.toc a {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: var(--bg-elevated);
+  transition:
+    border-color var(--duration-fast),
+    color var(--duration-fast);
+}
+
+.toc a:hover {
+  border-color: var(--border-strong);
+  color: var(--term-fg);
+}
+
+.doc-term {
+  max-width: 640px;
+  margin: 0 auto var(--space-5);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--term-fg);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
