@@ -445,7 +445,28 @@
                       ><span class="term-path"> ~ </span
                       ><span class="term-prompt">$ </span
                       ><span class="term-cmd">docker logs -f nginx</span
-                      ><span class="term-dim"> --tail 100</span
+                      ><span class="term-dim"> --tail 100</span>
+                    </div>
+                    <div class="term-line term-out">
+                      10.0.0.12 - - [07/Sep/2026:09:42:03 +0800] "GET
+                      /api/health HTTP/1.1" 200 15
+                    </div>
+                    <div class="term-line term-out">
+                      10.0.0.12 - - [07/Sep/2026:09:42:04 +0800] "POST
+                      /api/deploy HTTP/1.1" 201 32
+                    </div>
+                    <div class="term-line term-out">
+                      10.0.0.15 - - [07/Sep/2026:09:42:05 +0800] "GET
+                      /static/app.js HTTP/1.1" 304 0
+                    </div>
+                    <div class="term-line term-out">
+                      10.0.0.15 - - [07/Sep/2026:09:42:09 +0800] "GET
+                      /api/status HTTP/1.1" 200 41
+                    </div>
+                    <div class="term-line">
+                      <span class="term-user">deploy@prod</span
+                      ><span class="term-path"> ~ </span
+                      ><span class="term-prompt">$ </span
                       ><span class="term-cursor"></span>
                     </div>
                   </div>

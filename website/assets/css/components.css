@@ -350,8 +350,8 @@
 
 .terminal__body {
   padding: 12px var(--space-4);
-  min-height: 248px;
-  max-height: 420px;
+  min-height: 360px;
+  max-height: 480px;
   overflow-y: auto;
 }
 
